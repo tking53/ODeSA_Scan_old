@@ -55,10 +55,7 @@ typedef struct
 
 int Scan (){
 	static std::array< Can, 13 > det;
-
-  bool	beamON,
-    trg,
-    data;
+	bool beamON, trg;
 
   float	X, offset, sigma, mu;
   int	multi;
@@ -230,7 +227,6 @@ int Scan (){
 		else {{cout << " - Failed!" << endl;} }
 	}
 
-  data = 1;
   runtime = 0;
   prevtime = 0;
 
@@ -239,23 +235,23 @@ int Scan (){
    *   ----------------------------------------------------
    */
 
-	while (data) {
+	while (true) {
 		multi = 0;
 		X = -1;
 		beamON = 0;
 		for (j = 0; j < numFiles; j++) {
 			if(j > -1) {
-				//if(!fp[j].is_open()){data = 0; cout << "Could not open file!!" << endl;}
+				//if(!fp[j].is_open()){cout << "Could not open file!!" << endl; break;}
 
 				// Stop after nth events...
-				//if (TEvt > 1000000) {data = 0;}
+				//if (TEvt > 1000000) {break;}
 
 				if(fp[j].is_open()) {
 
 					trace_min = 0;
 
 					// Binary parsing
-					if (!fp[j].read((char*)&buffer32, 4)) {data = 0; break;}
+					if (!fp[j].read((char*)&buffer32, 4)) {break;}
 					Tracelength = (buffer32 - 16)/2;
 					fp[j].read((char*)&buffer32, 4);
 					fp[j].read((char*)&buffer32, 4);
@@ -278,7 +274,7 @@ int Scan (){
 
 					// Get traces
 					for (i = 0; i < Tracelength; i++) {
-						if (!fp[j].read((char*)&buffer16, 2)) {data = 0; break;}
+						if (!fp[j].read((char*)&buffer16, 2)) {break;}
 						if (j < 12) {
 							pulse.push_back(16383 - (float) buffer16);
 						}
