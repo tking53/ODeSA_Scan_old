@@ -54,13 +54,7 @@ typedef struct
 } Can;
 
 int Scan (){
-
-
-  /** ----------------------------------------------------
-   *	Variable declaration
-   *   ----------------------------------------------------
-   */
-  static Can det0, det1, det2, det3, det4, det5, det6, det7, det8, det9, det10, det11, det12;
+	static std::array< Can, 13 > det;
 
   bool	beamON,
     trg,
@@ -202,22 +196,12 @@ int Scan (){
 
   TTree *tt = new TTree("T", fileheader.c_str());
 
-  tt->Branch("d0",&det0,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d1",&det1,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d2",&det2,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d3",&det3,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d4",&det4,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d5",&det5,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d6",&det6,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d7",&det7,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d8",&det8,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d9",&det9,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d10",&det10,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d11",&det11,"l:s:amp:cfd:psd:trg");
-  tt->Branch("d12",&det12,"l:s:amp:cfd:psd:trg");
-  /* tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms */
-  /* tt->Branch("X",&steerer_X,"X steerer"); */
-  /* tt->Branch("Y",&steerer_Y,"Y steerer"); */
+	for (int i=0;i < det.size(); i++) {
+		tt->Branch(("d" + std::to_string(i)).c_str(), &det.at(i),"l:s:amp:cfd:psd:trg");
+	}
+	//tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
+	//tt->Branch("X",&steerer_X,"X steerer");
+	//tt->Branch("Y",&steerer_Y,"Y steerer");
 
   TH1F *trace0 = new TH1F("trace0","Trace for channel 0",200,0,199);
   tt->Branch("trace0","TH1F", &trace0);
@@ -356,184 +340,45 @@ int Scan (){
 	    }
 
 
-	  switch(j) {
-	  case 0 :
-	    det0.amp = amplitude;
-	    det0.l = (paraL);
-	    det0.s = (paraS);
-	    det0.cfd = CFD;
-	    det0.trg = trg;
-	    det0.psd = paraS / paraL;
-	    if (det0.trg){ det0.trg = 1;}
-	    else {det0.trg = 0;}
+		det.at(j).amp = amplitude;
+		det.at(j).l = paraL;
+		det.at(j).s = paraS;
+		det.at(j).cfd = CFD;
+		det.at(j).trg = trg;
+		det.at(j).psd = paraS / paraL;
+		if (det.at(j).trg) {det.at(j).trg = 1;}
+		else {det.at(j).trg = 0;}
 
-	    // Runtime clock
-	    difftime = trgtime - prevtime;
-	    if(difftime < 0) {
-	      difftime = difftime + 2147483647;
-	      runtime += ((8*difftime)/1.0E6);
-	      prevtime = trgtime;
-	    }
-	    else {
-	      runtime += ((8*difftime)/1.0E6);
-	      prevtime = trgtime;
-	    }
+		switch(j) {
+			case 0 :
+				// Runtime clock
+				difftime = trgtime - prevtime;
+				if(difftime < 0) {
+					difftime = difftime + 2147483647;
+					runtime += ((8*difftime)/1.0E6);
+					prevtime = trgtime;
+				}
+				else {
+					runtime += ((8*difftime)/1.0E6);
+					prevtime = trgtime;
+				}
+				break;
 
-	    break;
+			case 12 :
+				steerer_X = pulse[0];
+				break;
 
-	  case 1 :
+			case 13 :
+				steerer_Y = pulse[0];
+				break;
 
+			default:
+				break;
+		}
 
-	    det1.amp = amplitude;
-	    det1.l = (paraL);
-	    det1.s = (paraS);
-	    det1.cfd = CFD;
-	    det1.trg = trg;
-	    det1.psd = paraS / paraL;
-	    if (det1.trg){ det1.trg = 1;}
-	    else {det1.trg = 0;}
-
-
-	    break;
-
-	  case 2 :
-
-      det2.amp = amplitude;
-      det2.l = (paraL);
-      det2.s = (paraS);
-      det2.cfd = CFD;
-      det2.trg = trg;
-      det2.psd = paraS / paraL;
-      if (det2.trg){ det2.trg = 1;}
-      else {det2.trg = 0;}
-
-	    break;
-
-	  case 3 :
-	    det3.amp = amplitude;
-	    det3.l = (paraL);
-	    det3.s = (paraS);
-	    det3.cfd = CFD;
-	    det3.trg = trg;
-	    det3.psd = paraS / paraL;
-	    if (det3.trg){ det3.trg = 1;}
-	    else {det3.trg = 0;}
-
-	    break;
-
-
-	  case 4 :
-	    det4.amp = amplitude;
-	    det4.l = (paraL);
-	    det4.s = (paraS);
-	    det4.cfd = CFD;
-	    det4.trg = trg;
-	    det4.psd = paraS / paraL;
-	    if (det4.trg){ det4.trg = 1;}
-	    else {det4.trg = 0;}
-
-	    break;
-
-
-	  case 5 :
-	    det5.amp = amplitude;
-	    det5.l = (paraL);
-	    det5.s = (paraS);
-	    det5.cfd = CFD;
-	    det5.trg = trg;
-	    det5.psd = paraS / paraL;
-	    if (det5.trg){ det5.trg = 1;}
-	    else {det5.trg = 0;}
-
-	    break;
-
-	  case 6 :
-	    det6.amp = amplitude;
-	    det6.l = (paraL);
-	    det6.s = (paraS);
-	    det6.cfd = CFD;
-	    det6.trg = trg;
-	    det6.psd = paraS / paraL;
-	    if (det6.trg){ det6.trg = 1;}
-	    else {det6.trg = 0;}
-
-	    break;
-
-	  case 7 :
-	    det7.amp = amplitude;
-	    det7.l = (paraL);
-	    det7.s = (paraS);
-	    det7.cfd = CFD;
-	    det7.trg = trg;
-	    det7.psd = paraS / paraL;
-	    if (det7.trg){ det7.trg = 1;}
-	    else {det7.trg = 0;}
-
-	    break;
-
-    case 8 :
-      det8.amp = amplitude;
-      det8.l = (paraL);
-      det8.s = (paraS);
-      det8.cfd = CFD;
-      det8.trg = trg;
-      det8.psd = paraS / paraL;
-      if (det8.trg){ det8.trg = 1;}
-      else {det8.trg = 0;}
-
-        break;
-
-    case 9 :
-	     det9.amp = amplitude;
-	     det9.l = (paraL);
-	     det9.s = (paraS);
-      det9.cfd = CFD;
-      det9.trg = trg;
-    	det9.psd = paraS / paraL;
-    	if (det9.trg){ det9.trg = 1;}
-    	else {det9.trg = 0;}
-
-    	  break;
-
-    case 10 :
-      det10.amp = amplitude;
-      det10.l = (paraL);
-      det10.s = (paraS);
-      det10.cfd = CFD;
-      det10.trg = trg;
-      det10.psd = paraS / paraL;
-      if (det10.trg){ det10.trg = 1;}
-      else {det10.trg = 0;}
-
-        break;
-
-    case 11 :
-      det11.amp = amplitude;
-      det11.l = paraL;
-      det11.s = paraS;
-      det11.cfd = CFD;
-      det11.trg = trg;
-      det11.psd = det11.s / det11.l;
-      if (det11.trg){ det11.trg = 1;}
-      else {det11.trg = 0;}
-
-        break;
-
-      case 12 :
-        steerer_X = pulse[0];
-        break;
-
-      case 13 :
-        steerer_Y = pulse[0];
-    	break;
-
-      case 14 :
-      	break;
-	  }
-
-        }
-    }
-      tt->Fill();
+			}
+		}
+		tt->Fill();
       TEvt++;
       if (TEvt%1000==0) {cout << "\rEvent counter: " << TEvt << flush;}
 
