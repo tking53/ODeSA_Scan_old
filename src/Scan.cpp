@@ -60,19 +60,10 @@ int Scan (){
 	const int numFiles = 13;
 	std::array< ifstream, numFiles > fps;
 
-	std::string filename;
-  char prompt[10],
-    runnum[250],
-    interrputPrompt;
+	long TEvt = 0;
 
-	std::string prefix, openfile;
-
-  Float_t trgtime, prevtime, difftime;
-  Float_t prevtrgtime[10];
-  long	TEvt = 0;
-
-  uint32_t buffer32;
-  uint16_t buffer16;
+	uint32_t buffer32;
+	uint16_t buffer16;
 
   TSpectrum *s = new TSpectrum();
 
@@ -161,15 +152,17 @@ int Scan (){
   cout << " |   ORNL Nuclear Astrophysics                   |" << endl;
   cout << " ------------------------------------------------ " << endl;
 
-  cout << "Root file name to be created: ";
-  cin >> filename;
+	std::string filename;
+	cout << "Root file name to be created: ";
+	cin >> filename;
 
-	string treeDesc;
+	std::string treeDesc;
 	cout << "Root tree description: ";
 	cin >> treeDesc;
 
-  cout << "Run binary file prefix ('../run#'): ";
-  cin >> prefix;
+	std::string prefix;
+	cout << "Run binary file prefix ('../run#'): ";
+	cin >> prefix;
 
   TFile *ff = new TFile((filename + ".root").c_str(), "RECREATE");
 
@@ -198,7 +191,7 @@ int Scan (){
 	// Open files
 	bool valid = false;
 	for (int i = 0; i < numFiles; i++) {
-		openfile = prefix + "_wave" + to_string(i) + ".dat";
+		std::string openfile = prefix + "_wave" + to_string(i) + ".dat";
 		cout << " Opening file: " << openfile;
 		fps[i].open(openfile, std::ifstream::in | std::ifstream::binary);
 
@@ -212,13 +205,15 @@ int Scan (){
 		cerr << "No valid files found!" << endl;
 	}
 
-  float runtime = 0;
-  prevtime = 0;
+	float runtime = 0;
+	float prevtime = 0;
+	float trgtime = 0;
+	float difftime = 0;
 
-  /** ----------------------------------------------------
-	*	Process liquid scintillator det events
-	*   ----------------------------------------------------
-	*/
+	/** ----------------------------------------------------
+	 *	Process liquid scintillator det events
+	 *   ----------------------------------------------------
+	 */
 
   while (true) {
 	  beamON = 0;
