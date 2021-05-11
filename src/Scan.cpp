@@ -57,9 +57,6 @@ int Scan (){
 	static std::array< Can, 13 > det;
 	bool beamON, trg;
 
-  float	X, offset, sigma, mu;
-  int	multi;
-
   ifstream fp[16];
 
   string 	line, fileheader;
@@ -236,8 +233,6 @@ int Scan (){
    */
 
 	while (true) {
-		multi = 0;
-		X = -1;
 		beamON = 0;
 		for (j = 0; j < numFiles; j++) {
 			if(j > -1) {
@@ -316,14 +311,14 @@ int Scan (){
           //f1->SetParameters(1.0, (double)pposition, 0.1);
           //trace0->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
           //trace0->Fit("f1","RQ");
-          //mu = (float)f1->GetParameter(1);
-          //sigma = (float)f1->GetParameter(2);
+          //float mu = (float)f1->GetParameter(1);
+          //float sigma = (float)f1->GetParameter(2);
 
           //CFD = mu - sqrtf(1.38629*sigma*sigma);
 	        //CFD = (float)pposition;
 
           // PSD integration
-          offset = 12.0; // original 12
+          float offset = 12.0; // original 12
           if (pposition - 10 > 0 && pposition + 100 < Tracelength) {
             for (i = (pposition - 10); i < (pposition + 100); i++) {
               paraL += pulse[i];
