@@ -78,9 +78,7 @@ int Scan (){
     tac,
     paraL,
     paraS,
-    runtime,
-    steerer_X, steerer_Y,
-    temp;
+    runtime;
 
   // For SG filtered pulse
   Float_t trace_min, trace_max;
@@ -110,65 +108,75 @@ int Scan (){
    *   ----------------------------------------------------
    */
 
-  float cal[16] =
-    {   0.0359,
-      	0.0327,
-      	0.0362,
-      	0.0269,
-      	0.0327,
-      	0.0345,
-      	0.0394,
-      	0.0376,
-      	0.031,
-      	0.0236,
-      	1.0, 1., 1., 1., 1., 1.
-    }; // calibration (keVee / (bit * sample)) from manual check on calibration
+  std::array< float, 16 > cal =
+  {  0.0359,
+	  0.0327,
+	  0.0362,
+	  0.0269,
+	  0.0327,
+	  0.0345,
+	  0.0394,
+	  0.0376,
+	  0.031,
+	  0.0236,
+	  1.0,
+	  1.,
+	  1.,
+	  1.,
+	  1.,
+	  1.
+  }; // calibration (keVee / (bit * sample)) from manual check on calibration
 
-    float caloffset[16] =
-      {   21.124,
-  	      23.803,
-  	      18.688,
-  	      18.465,
-  	      11.81,
-    	    23.183,
-        	22.302,
-        	18.863,
-        	13.401,
-        	30.319,
-    	    0, 0, 0, 0, 0, 0
-      };
+  std::array< float, 16 > caloffset =
+  {  21.124,
+	  23.803,
+	  18.688,
+	  18.465,
+	  11.81,
+	  23.183,
+	  22.302,
+	  18.863,
+	  13.401,
+	  30.319,
+	  0,
+	  0,
+	  0,
+	  0,
+	  0,
+	  0
+  };
 
-  float threshold[16] =
-    {   15700,
-	15700,
-	15700,
-	15700,
-	15700,
-	15700,
-	15700,
-	15700,
-	15700,
-	15700,
-  15700,
-  15700,
-	15700,
-	15700,
-	15700,
-	15700
-    };
+  std::array< float, 16 > threshold =
+  {  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700,
+	  15700
+  };
 
   /** ----------------------------------------------------
-   *	Get functions
-   *   ----------------------------------------------------
-   */
+	*	Get functions
+	*   ----------------------------------------------------
+	*/
 
   PulseAnalysis *Analysis = new PulseAnalysis();
 
 
   /** ----------------------------------------------------
-   *	Program start...
-   *   ----------------------------------------------------
-   */
+	*	Program start...
+	*   ----------------------------------------------------
+	*/
 
   cout << " ------------------------------------------------ " << endl;
   cout << " | Scan.cpp - binary version                     |" << endl;
@@ -191,12 +199,12 @@ int Scan (){
 
   TTree *tt = new TTree("T", fileheader.c_str());
 
-	for (int i=0;i < dets.size(); i++) {
-		tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
-	}
-	//tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
-	//tt->Branch("X",&steerer_X,"X steerer");
-	//tt->Branch("Y",&steerer_Y,"Y steerer");
+  for (int i=0;i < dets.size(); i++) {
+	  tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
+  }
+  //tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
+  //tt->Branch("X",&steerer_X,"X steerer");
+  //tt->Branch("Y",&steerer_Y,"Y steerer");
 
   TH1F *trace0 = new TH1F("trace0","Trace for channel 0",200,0,199);
   tt->Branch("trace0","TH1F", &trace0);
@@ -213,33 +221,33 @@ int Scan (){
   float psd_opt[20];
   //tt->Branch("psd_opt", &psd_opt, "psd_opt[20]/F");
 
-	// Open files
-	for (int i = 0; i < numFiles; i++) {
-		openfile = prefix + "_wave" + to_string(i) + ".dat";
-		cout << " Opening file: " << openfile;
-		fps[i].open(openfile, std::ifstream::in | std::ifstream::binary);
+  // Open files
+  for (int i = 0; i < numFiles; i++) {
+	  openfile = prefix + "_wave" + to_string(i) + ".dat";
+	  cout << " Opening file: " << openfile;
+	  fps[i].open(openfile, std::ifstream::in | std::ifstream::binary);
 
-		if (fps[i].is_open()) {cout << " - Open!" << endl;}
-		else {{cout << " - Failed!" << endl;} }
-	}
+	  if (fps[i].is_open()) {cout << " - Open!" << endl;}
+	  else {{cout << " - Failed!" << endl;} }
+  }
 
   runtime = 0;
   prevtime = 0;
 
   /** ----------------------------------------------------
-   *	Process liquid scintillator det events
-   *   ----------------------------------------------------
-   */
+	*	Process liquid scintillator det events
+	*   ----------------------------------------------------
+	*/
 
-	while (true) {
-		beamON = 0;
-		for (int detNum=0; detNum < numFiles; detNum++) {
-			// Stop after nth events...
-			//if (TEvt > 1000000) {break;}
+  while (true) {
+	  beamON = 0;
+	  for (int detNum=0; detNum < numFiles; detNum++) {
+		  // Stop after nth events...
+		  //if (TEvt > 1000000) {break;}
 
-			trace_min = 0;
+		  trace_min = 0;
 
-			// Binary parsing
+		  // Binary parsing
 			auto & fp = fps[detNum];
 
 			if (!fp.read((char*)&buffer32, 4)) {break;}
@@ -259,13 +267,12 @@ int Scan (){
 			trg = 0;
 			tac = 0;
 			pposition = -1;
-			//steerer_X = 0;
-			//steerer_Y = 1;
-			temp = 0;
 
 			// Get traces
 			for (int i = 0; i < Tracelength; i++) {
 				if (!fp.read((char*)&buffer16, 2)) {break;}
+
+				// Flip detector signals to positive
 				if (detNum < 12) {
 					pulse.push_back(16383 - (float) buffer16);
 				}
@@ -279,7 +286,7 @@ int Scan (){
 			}
 
 			/** Liquid can processing **/
-			if(Tracelength > 1) {
+			if (Tracelength > 1) {
 				// Process trace
 				// Get a Continuous Moving Average (CMA) of the pulse.
 				CMAtrace = Analysis->CMA_Filter(pulse, 10, pulse[0], 3.5 );
@@ -342,29 +349,25 @@ int Scan (){
 						difftime = difftime + 2147483647;
 					runtime += ((8*difftime)/1.0E6);
 					prevtime = trgtime;
-				}
-				else {
-					runtime += ((8*difftime)/1.0E6);
-					prevtime = trgtime;
-				}
-				break;
+					}
+					else {
+						runtime += ((8*difftime)/1.0E6);
+						prevtime = trgtime;
+					}
+					break;
 
-			case 12 :
-				steerer_X = pulse[0];
-				break;
+				case 13:
+				case 14:
+				case 15:
 
-			case 13 :
-				steerer_Y = pulse[0];
-				break;
-
-			default:
-				break;
-		}
+				default:
+					break;
+			}
 
 		}
 		tt->Fill();
       TEvt++;
-      if (TEvt%1000==0) {cout << "\rEvent counter: " << TEvt << flush;}
+      if (TEvt % 1000==0) {cout << "\rEvent counter: " << TEvt << flush;}
 
 	}
 
