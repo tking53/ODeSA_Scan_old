@@ -373,16 +373,15 @@ int PulseAnalysis::Baseline_restore (std::vector< float > & pulse, float* baseli
 		for (int i = 0; i < iterations; i++) {x += pulse[i];}
 		x = x / (float)iterations;
 
-		for (size_t i = 0; i < pulse.size(); i++) {
-			pulse[i] -= x;
+		for (auto & value : pulse) {
+			value -= x;
 		}
 	}
 
 	if (method == 3) {
 		int j = 0;
 		for (size_t i = 0; i < pulse.size(); i++) {
-		for (auto value : pulse) {
-			if(value > j) { j = (int)value; k = i;}
+			if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 		}
 
 		x = 0; y = 0;
