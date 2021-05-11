@@ -51,7 +51,7 @@ public :
 						PulseAnalysis();
 						~PulseAnalysis();
 	void				GetVersion();
-	int	   			PSD_Integration (float*, int, int, int, int, int, float*, float*);
+	int	   			PSD_Integration (const std::vector< float >, int, int, int, int, float*, float*);
     int             PSD_Integration_Afterpulsing(float*, int, int, int, int, int, float, int*, float*, float*, int*);
 	int				Baseline_restore (float*, float*, int, int, int);
 	int     		PSD_Zerocross (float*, int, int, int, float*);
@@ -241,13 +241,10 @@ int PulseAnalysis::OptimizePSD (const std::vector< float > pulse, int start, int
 *			method - see above...
 *	----------------------------------------------------
 */
-int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int stop, int offset, int method, float* paraL, float* paraS)
+int PulseAnalysis::PSD_Integration (const std::vector< float > pulse, int start, int stop, int offset, int method, float* paraL, float* paraS)
 {
-
-	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
-
 	int j = 0;
-	for (int i = 0; i < length; i++) {
+	for (size_t i = 0; i < pulse.size(); i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
 	}
 
@@ -261,7 +258,7 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 	x = ((0.5*(pulse[l]) - pulse[k - 1])/((pulse[k + 1]
 			- pulse[k - 1])/3))+ ((float)k - 1);
 
-	if((k - start) > 0 && (k + start) < length) {
+	if((k - start) > 0 && (k + start) < pulse.size()) {
 			// Initialization
 			integralS = 0; integralL = 0;
 
