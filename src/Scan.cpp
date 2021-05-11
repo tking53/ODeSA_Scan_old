@@ -187,7 +187,7 @@ int Scan (){
   cout << " | Scan.cpp - binary version                     |" << endl;
   cout << " |   Experiment: 20Ne(d,n)                       |" << endl;
   cout << " |   Date: May 2021                              |" << endl;
-  cout << " |   Calibration used: None			    |" << endl;
+  cout << " |   Calibration used: None                      |" << endl;
   cout << " |   ORNL Nuclear Astrophysics                   |" << endl;
   cout << " ------------------------------------------------ " << endl;
 
