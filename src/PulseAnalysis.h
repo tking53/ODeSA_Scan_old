@@ -42,7 +42,7 @@ protected :
 	float 				PSD, integralS, integralL, sumL, sumS;
 	float 				linear[4], pulse_temp[2000], summing[2000], MovingAverage[2000];
 	float 				w,x,y,z;
-	int 				j,k,l,m,n;
+	int 				k,l,m,n;
 	int 				return_code	;
 	bool				positive, negative;
 
@@ -171,17 +171,15 @@ int PulseAnalysis::OptimizePSD (const std::vector< float > pulse, int start, int
 	if ((upper - lower) < 0) {return -1;}
 	if ((upper - lower) < sizeof(paraS)/sizeof(float)) {return -1;}
 
-	j = 0;
-	for (int i = 0; i < pulse.size(); i++)
-	{
+	int j = 0;
+	for (int i = 0; i < pulse.size(); i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
 	}
 
 	// Constant fraction discrimination (CFD) at 50% of amplitude
 
 	j = l;
-	for(int i = j - 50; i < j; i++)
-	{
+	for(int i = j - 50; i < j; i++) {
 		if(pulse[i] < (pulse[l])*0.5) {k = i;}
 	}
 
@@ -248,7 +246,7 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	j = 0;
+	int j = 0;
 	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
 	}
@@ -389,7 +387,7 @@ int PulseAnalysis::Baseline_restore (float* pulse, float* baseline, int length, 
 	}
 
 	if (method == 3) {
-		j = 0;
+		int j = 0;
 		for (int i = 0; i < length; i++) {
 			if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 		}
@@ -422,7 +420,7 @@ int PulseAnalysis::Parameters (float* pulse, int length, int range, float* CFD, 
 {
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	j = 0;
+	int j = 0;
 	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 	}
@@ -523,7 +521,7 @@ int PulseAnalysis::Parameters2 (float* pulse, int length, int range, float* CFD,
 {
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	j = 0;
+	int j = 0;
 	m=0;
 	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i; m = i;}
@@ -617,14 +615,12 @@ int PulseAnalysis::PeakFinder (float* pulse, int length, int sigma, int range, i
 
 	if(method == 2) { w = sigma; }
 
-	j = 0; k = 0; x = 0; y = 0; m = 0; n = 0;
+	int j = 0;
+	k = 0; x = 0; y = 0; m = 0; n = 0;
 	positive = 0; negative = 0;
-	for (int i = 0; i < length - 5; i++)
-	{
-		if( pulse_temp[i] <= w && pulse_temp[i] >= -1*w)
-		{
-			if (positive == 1 && negative == 1)
-			{
+	for (int i = 0; i < length - 5; i++) {
+		if( pulse_temp[i] <= w && pulse_temp[i] >= -1*w) {
+			if (positive == 1 && negative == 1) {
 				positive = 0;
 				negative = 0;
 				//locPeaks[*numPeaks - 1][1] = j;
@@ -635,14 +631,11 @@ int PulseAnalysis::PeakFinder (float* pulse, int length, int sigma, int range, i
 				x = 0; y = 0;
 			}
 		}
-		else
-		{
-
+		else {
 			if (positive == 0 && negative == 0 && i > n + 40) { m++; n = i;}
 
 			// Positive inflection point
-			if(pulse_temp[i] > 0)
-			{
+			if(pulse_temp[i] > 0) {
 				positive = 1;
 				if (pulse_temp[i] > x) {x = pulse_temp[i]; j = i;}
 			}
@@ -676,10 +669,8 @@ int PulseAnalysis::Derivative(float* pulse, int length, int order)
 {
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	for(j = 1; j <= order; j++)
-	{
-		for (int i = 0; i < length - j; i++)
-		{
+	for(int j = 1; j <= order; j++) {
+		for (int i = 0; i < length - j; i++) {
 			pulse[i] = pulse[i + 1] - pulse[i];
 		}
 	}
@@ -778,7 +769,7 @@ int PulseAnalysis::PSD_Zerocross (float* pulse, int length, int integration, int
 {
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	j = 0;
+	int j = 0;
 	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 	}
@@ -837,7 +828,7 @@ int PulseAnalysis::Half_Integral(float* pulse, int length, float* integral)
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
 	*integral = 0;
-	j = 0;
+	int j = 0;
 	for (int i = 0; i < length; i++)
 	{
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
@@ -885,7 +876,7 @@ int PulseAnalysis::Smooth(float* pulse, int length, int iterations, int method, 
 		for (int i = 2; i < length - 3; i++)
 		{
 			MovingAverage[i] = 0;
-			for (j = i - 2; j <= i + 2; j++) {MovingAverage[i] += pulse[j];}
+			for (int j = i - 2; j <= i + 2; j++) {MovingAverage[i] += pulse[j];}
 		}
 		for (int i =1; i < length - 3; i++)
 		{
@@ -935,7 +926,7 @@ int PulseAnalysis::PSD_Integration_Afterpulsing (float* pulse, int length, int s
 
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	j = 0;
+	int j = 0;
 	for (int i = 0; i < length; i++)
 	{
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
