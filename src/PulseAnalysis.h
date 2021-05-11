@@ -25,6 +25,7 @@
 #include <cmath>
 #include <string>
 #include <deque>
+#include <vector>
 
 
 using namespace std;
@@ -64,7 +65,7 @@ public :
 	int				Half_Integral(float*, int, float*);
 	int				Smooth(float*, int, int, int, float);
 	int				HPGe(float*, int, float*);
-	int				CMA_Filter(float*, int, float*, int, float, float);
+	std::vector< float >	CMA_Filter(std::vector<float>, int, float, float);
 };
 
 /** Constructor  */
@@ -102,59 +103,60 @@ void PulseAnalysis::GetVersion()
 *	Inputs:
 *			pulse - input array
 *			length - the length of pulse
-*			CMAtrace - output CMA trace
 *			halfWidth - halfwidth for moving average
 *			preloadValue - initial guess for baseline
 *			rejectThreshold - threshold
+*  Returns:
+*			CMAtrace - output CMA trace
 *	----------------------------------------------------
 */
-int PulseAnalysis::CMA_Filter(float* waveform, int length, float* CMAtrace, int halfWidth, float preloadValue, float rejectThreshold)
+std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, int halfWidth, float preloadValue, float rejectThreshold)
 {
-		deque<float> movingBaselineFilter;
+	deque<float> movingBaselineFilter;
+	std::vector< float > CMAtrace;
 
-		float movingBaselineValue = 0;
+	float movingBaselineValue = 0;
 
-		if( preloadValue > -7777 ) {
-				for( i = 0; i < halfWidth; i++ ) {
-						movingBaselineFilter.push_back( preloadValue );
-						movingBaselineValue += preloadValue;
-				}
-		}
-
-
+	if( preloadValue > -7777 ) {
 		for( i = 0; i < halfWidth; i++ ) {
-				if( preloadValue > -7777 ) {
-						if( fabs( waveform[i] - movingBaselineValue/movingBaselineFilter.size() ) >= rejectThreshold ) {
-								continue;
-						}
-				}
-				movingBaselineFilter.push_back( waveform[i] );
-				movingBaselineValue += waveform[i];
+			movingBaselineFilter.push_back( preloadValue );
+			movingBaselineValue += preloadValue;
 		}
+	}
 
-		for( i = 0; i < length; i++ ) {
 
-				if( fabs( waveform[i] - movingBaselineValue/movingBaselineFilter.size() ) < rejectThreshold  ) {
-						if( i + halfWidth < length ) {
-								//            we're still in valid lengths
-								if( movingBaselineFilter.size() >= halfWidth*2 + 1 ) {
-										//                filter is fully occupied, pop as we move
-										movingBaselineValue -= movingBaselineFilter.front();
-										movingBaselineFilter.pop_front();
-								}
-
-								movingBaselineValue += waveform[i];
-								movingBaselineFilter.push_back( waveform[i] );
-						}
-						else {
-								movingBaselineValue -= movingBaselineFilter.front();
-								movingBaselineFilter.pop_front();
-						}
-				}
-				CMAtrace[i] = movingBaselineValue / movingBaselineFilter.size();
+	for( i = 0; i < halfWidth; i++ ) {
+		if( preloadValue > -7777 ) {
+			if( fabs( waveform[i] - movingBaselineValue/movingBaselineFilter.size() ) >= rejectThreshold ) {
+				continue;
+			}
 		}
+		movingBaselineFilter.push_back( waveform[i] );
+		movingBaselineValue += waveform[i];
+	}
 
-		return 0;
+	for(auto value : waveform) {
+		if( fabs( value - movingBaselineValue/movingBaselineFilter.size() ) < rejectThreshold  ) {
+			if( i + halfWidth < waveform.size() ) {
+				//            we're still in valid lengths
+				if( movingBaselineFilter.size() >= halfWidth*2 + 1 ) {
+					//                filter is fully occupied, pop as we move
+					movingBaselineValue -= movingBaselineFilter.front();
+					movingBaselineFilter.pop_front();
+				}
+
+				movingBaselineValue += value;
+				movingBaselineFilter.push_back( value );
+			}
+			else {
+				movingBaselineValue -= movingBaselineFilter.front();
+				movingBaselineFilter.pop_front();
+			}
+		}
+		CMAtrace.push_back(movingBaselineValue / movingBaselineFilter.size());
+	}
+
+	return CMAtrace;
 }
 
 /** ----------------------------------------------------

@@ -77,11 +77,9 @@ int Scan (){
     Tracelength,
     eventlength;
 
-  float pulse[350],
-    CMAtrace[350],
-    SG_pulse[350],
-    SGderv2_pulse[350],
-    baseline[350];
+	std::vector< float > pulse, CMAtrace;
+	float SG_pulse[350], SGderv2_pulse[350], baseline[350];
+
 
   Float_t amplitude,
     risetime,
@@ -102,10 +100,10 @@ int Scan (){
 
   char 	filename[250],
     prompt[10],
-    openfile[250],
-    prefix[250],
     runnum[250],
     interrputPrompt;
+
+	std::string prefix, openfile;
 
   Float_t trgtime, prevtime, difftime;
   Float_t prevtrgtime[10];
@@ -238,16 +236,15 @@ int Scan (){
 
   const int numFiles = 13;
 
-  // Open files
-  for (i = 0; i < numFiles; i++)
-  {
-    sprintf(openfile, "%s_wave%d.dat",prefix,i);
-    cout << " Opening file: " << openfile;
-    fp[i].open(openfile, std::ifstream::in | std::ifstream::binary);
+	// Open files
+	for (i = 0; i < numFiles; i++) {
+		openfile = prefix + "_wave" + to_string(i) + ".dat";
+		cout << " Opening file: " << openfile;
+		fp[i].open(openfile, std::ifstream::in | std::ifstream::binary);
 
-    if(fp[i].is_open()) {cout << " - Open!" << endl;}
-    else {{cout << " - Failed!" << endl;} }
-  }
+		if(fp[i].is_open()) {cout << " - Open!" << endl;}
+		else {{cout << " - Failed!" << endl;} }
+	}
 
   data = 1;
   runtime = 0;
@@ -258,77 +255,82 @@ int Scan (){
    *   ----------------------------------------------------
    */
 
-  while (data)
-    {
-      multi = 0;
-      X = -1;
-      beamON = 0;
-      for (j = 0; j < numFiles; j++)
-	{
-	 if(j > -1)
-	 {
-	  //if(!fp[j].is_open()){data = 0; cout << "Could not open file!!" << endl;}
+	while (data) {
+		multi = 0;
+		X = -1;
+		beamON = 0;
+		for (j = 0; j < numFiles; j++) {
+			if(j > -1) {
+				//if(!fp[j].is_open()){data = 0; cout << "Could not open file!!" << endl;}
 
-    // Stop after nth events...
-    //if (TEvt > 1000000) {data = 0;}
+				// Stop after nth events...
+				//if (TEvt > 1000000) {data = 0;}
 
-	  if(fp[j].is_open())
-	    {
+				if(fp[j].is_open()) {
 
-	      trace_min = 0;
+					trace_min = 0;
 
-        // Binary parsing
-        if (!fp[j].read((char*)&buffer32, 4)) {data = 0; break;}
-        Tracelength = (buffer32 - 16)/2;
-        fp[j].read((char*)&buffer32, 4);
-        fp[j].read((char*)&buffer32, 4);
-        fp[j].read((char*)&buffer32, 4);
+					// Binary parsing
+					if (!fp[j].read((char*)&buffer32, 4)) {data = 0; break;}
+					Tracelength = (buffer32 - 16)/2;
+					fp[j].read((char*)&buffer32, 4);
+					fp[j].read((char*)&buffer32, 4);
+					fp[j].read((char*)&buffer32, 4);
 
-	      // Trigger time in 2 ADC clock cycles ( 8 ns )
-	      if (j == 0)
-            trgtime = buffer32;
+					// Trigger time in 2 ADC clock cycles ( 8 ns )
+					if (j == 0) trgtime = buffer32;
 
-	      // Reset variables
-	      CFD = -1;
-	      amplitude = -1;
-	      paraL = 0;
-	      paraS = 0;
-	      trg = 0;
-	      tac = 0;
-	      pposition = -1;
-	      //steerer_X = 0;
-              //steerer_Y = 1;
-	      temp = 0;
+					// Reset variables
+					CFD = -1;
+					amplitude = -1;
+					paraL = 0;
+					paraS = 0;
+					trg = 0;
+					tac = 0;
+					pposition = -1;
+					//steerer_X = 0;
+					//steerer_Y = 1;
+					temp = 0;
 
-	      // Get traces
-	      for (i = 0; i < Tracelength; i++)
-		    {
-            if (!fp[j].read((char*)&buffer16, 2)) {data = 0; break;}
-			      if (j < 12) {pulse[i] = 16383 - (float)buffer16; }
-			      else {pulse[i] = (float)buffer16;}
+					// Get traces
+					for (i = 0; i < Tracelength; i++) {
+						if (!fp[j].read((char*)&buffer16, 2)) {data = 0; break;}
+						if (j < 12) {
+							pulse.push_back(16383 - (float) buffer16);
+						}
+						else {pulse.push_back(buffer16);}
 
-            if (pulse[i] > (16383 - threshold[j])) {trg = 1;}
+						if (pulse.back() > (16383 - threshold[j])) {trg = 1;}
 
-		        // Added traces
-		        if (j==0) {trace0->SetBinContent(i, pulse[i]);}
-		        if (j==1) {trace1->SetBinContent(i, pulse[i]);}
-		    }
+						// Added traces
+						if (j==0) {trace0->SetBinContent(i, pulse.back());}
+						if (j==1) {trace1->SetBinContent(i, pulse.back());}
+					}
 
-	      /** Liquid can processing **/
-	      if(Tracelength > 1)
-		    {
+					/** Liquid can processing **/
+					if(Tracelength > 1) {
+						// Process trace
+						if (j < numFiles) {
+							// Get a Continuous Moving Average (CMA) of the pulse.
+							CMAtrace = Analysis->CMA_Filter(pulse, 10, pulse[0], 3.5 );
+							// Subtract the CMA from the pulse
+							std::transform(pulse.begin(), pulse.end(), CMAtrace.begin(), pulse.begin(), std::minus<int>());
 
-          // Process trace
-          if (j < numFiles) {
-            Analysis->CMA_Filter(pulse, Tracelength, CMAtrace, 10, pulse[0], 3.5 );
-            for (i = 0; i < Tracelength; i++) {
-              pulse[i] -= CMAtrace[i];
-              if (j==0) {trace0->SetBinContent(i, pulse[i]);}
-              if (j==1) {trace1->SetBinContent(i, pulse[i]);}
-              trace0C->SetBinContent(i, pulse[i]);
-              traceCMA->SetBinContent(i, CMAtrace[i]);
-              if (pulse[i] > amplitude) {amplitude = pulse[i]; pposition = i;}
-          }
+							// Find the maximum element in the subtracted pulse.
+							auto maxElement = std::max_element(pulse.begin(), pulse.end());
+							amplitude = *maxElement;
+							pposition = std::distance(pulse.begin(), maxElement);
+
+							// Fill the bins.
+							for (auto value : pulse) {
+								if (j==0) {trace0->SetBinContent(i, value);}
+								if (j==1) {trace1->SetBinContent(i, value);}
+								trace0C->SetBinContent(i, value);
+							}
+							for (auto value : CMAtrace) {
+								traceCMA->SetBinContent(i, value);
+							}
+
 
           // CFD timing
           //f1->SetParameters(1.0, (double)pposition, 0.1);
