@@ -60,22 +60,6 @@ int Scan (){
 	const int numFiles = 13;
 	std::array< ifstream, numFiles > fps;
 
-	string fileheader;
-
-	int k, pposition,
-    Tracelength,
-    eventlength;
-
-  Float_t amplitude,
-    risetime,
-    falltime,
-    width,
-    CFD,
-    tac,
-    paraL,
-    paraS,
-    runtime;
-
 	std::string filename;
   char prompt[10],
     runnum[250],
@@ -180,15 +164,16 @@ int Scan (){
   cout << "Root file name to be created: ";
   cin >> filename;
 
-  cout << "Root file header: ";
-  cin >> fileheader;
+	string treeDesc;
+	cout << "Root tree description: ";
+	cin >> treeDesc;
 
   cout << "Run binary file prefix ('../run#'): ";
   cin >> prefix;
 
   TFile *ff = new TFile((filename + ".root").c_str(), "RECREATE");
 
-  TTree *tt = new TTree("T", fileheader.c_str());
+  TTree *tt = new TTree("T", treeDesc.c_str());
 
   for (int i=0;i < dets.size(); i++) {
 	  tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
@@ -227,7 +212,7 @@ int Scan (){
 		cerr << "No valid files found!" << endl;
 	}
 
-  runtime = 0;
+  float runtime = 0;
   prevtime = 0;
 
   /** ----------------------------------------------------
@@ -245,7 +230,7 @@ int Scan (){
 			auto & fp = fps[detNum];
 
 			if (!fp.read((char*)&buffer32, 4)) {break;}
-			Tracelength = (buffer32 - 16)/2;
+			int Tracelength = (buffer32 - 16)/2;
 			fp.read((char*)&buffer32, 4);
 			fp.read((char*)&buffer32, 4);
 			fp.read((char*)&buffer32, 4);
@@ -254,13 +239,12 @@ int Scan (){
 			if (detNum == 0) trgtime = buffer32;
 
 			// Reset variables
-			CFD = -1;
-			amplitude = -1;
-			paraL = 0;
-			paraS = 0;
+			float CFD = -1;
+			float amplitude = -1;
+			float paraL = 0;
+			float paraS = 0;
 			trg = 0;
-			tac = 0;
-			pposition = -1;
+			int pposition = -1;
 
 			std::vector< float > pulse;
 
@@ -305,7 +289,6 @@ int Scan (){
 					traceCMA->SetBinContent(i, CMAtrace[i]);
 				}
 
-
 				// CFD timing
 				//f1->SetParameters(1.0, (double)pposition, 0.1);
 				//trace0->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
@@ -325,7 +308,6 @@ int Scan (){
 					}
 				}
 			}
-
 
 			auto & det = dets.at(detNum);
 			det.amp = amplitude;
