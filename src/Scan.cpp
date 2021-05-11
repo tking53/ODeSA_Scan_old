@@ -55,7 +55,6 @@ typedef struct
 
 int Scan (){
 	static std::array< Can, 13 > dets;
-	bool beamON, trg;
 
 	const int numFiles = 13;
 	std::array< ifstream, numFiles > fps;
@@ -203,6 +202,7 @@ int Scan (){
 	}
 	if (! valid) {
 		cerr << "No valid files found!" << endl;
+		exit(-1);
 	}
 
 	float runtime = 0;
@@ -215,16 +215,20 @@ int Scan (){
 	 *   ----------------------------------------------------
 	 */
 
-  while (true) {
-	  beamON = 0;
-	  for (int detNum=0; detNum < numFiles; detNum++) {
-		  // Stop after nth events...
-		  //if (TEvt > 1000000) {break;}
+	bool data_valid = true;
+	while (data_valid) {
+		// Stop after nth events...
+		//if (TEvt > 1000000) {break;}
+		for (int detNum=0; detNum < numFiles; detNum++) {
 
 		  // Binary parsing
 			auto & fp = fps[detNum];
 
-			if (!fp.read((char*)&buffer32, 4)) {break;}
+			if ( ! fp.is_open()) {continue;}
+			if (!fp.read((char*)&buffer32, 4)) {
+				data_valid = false;
+				break;
+			}
 			int Tracelength = (buffer32 - 16)/2;
 			fp.read((char*)&buffer32, 4);
 			fp.read((char*)&buffer32, 4);
@@ -238,22 +242,26 @@ int Scan (){
 			float amplitude = -1;
 			float paraL = 0;
 			float paraS = 0;
-			trg = 0;
+			bool trg = false;
 			int pposition = -1;
 
-			std::vector< float > pulse;
+			std::vector< float > pulse(350);
 
 			// Get traces
 			for (int i = 0; i < Tracelength; i++) {
-				if (!fp.read((char*)&buffer16, 2)) {break;}
+				if (!fp.read((char*)&buffer16, 2)) {
+					data_valid = false;
+					break;
+				}
+
+				// Determine the trigger channel by inspecting  
+				if (buffer16 > threshold[detNum]) {trg = true;}
 
 				// Flip detector signals to positive
 				if (detNum < 12) {
 					pulse.push_back(16383 - (float) buffer16);
 				}
 				else {pulse.push_back(buffer16);}
-
-				if (pulse.back() > (16383 - threshold[detNum])) {trg = 1;}
 
 				// Added traces
 				if (detNum==0) {trace0->SetBinContent(i, pulse.back());}
