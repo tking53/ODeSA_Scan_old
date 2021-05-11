@@ -53,7 +53,7 @@ public :
 	void				GetVersion();
 	int	   			PSD_Integration (const std::vector< float >, int, int, int, int, float*, float*);
     int             PSD_Integration_Afterpulsing(float*, int, int, int, int, int, float, int*, float*, float*, int*);
-	int				Baseline_restore (float*, float*, int, int, int);
+	int				Baseline_restore (std::vector< float > &, float*, int, int);
 	int     		PSD_Zerocross (float*, int, int, int, float*);
 	int				Parameters (float*, int, int, float*, float*, float*, float*, float*);
 	int				Parameters2 (float*, int, int, float*, float*);
@@ -345,20 +345,15 @@ int PulseAnalysis::PSD_Integration (const std::vector< float > pulse, int start,
 *
 *	Inputs:
 *			pulse - input array
-*			length - the length of pulse
 *			iterations - number of iterations
 *			method - see above...
 *
 *	----------------------------------------------------
 */
-int PulseAnalysis::Baseline_restore (float* pulse, float* baseline, int length, int iterations, int method)
+int PulseAnalysis::Baseline_restore (std::vector< float > & pulse, float* baseline, int iterations, int method)
 {
-	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
-
-
-	if (method == 1)
-	{
-		for (int i=0; i< length; i++) {
+	if (method == 1) {
+		for (size_t i=0; i< pulse.size(); i++) {
 			baseline[i] = pulse[i] + 0.3;
 		}
 
@@ -368,7 +363,7 @@ int PulseAnalysis::Baseline_restore (float* pulse, float* baseline, int length, 
 		//TSpectrum::Background(baseline, length, iterations,TSpectrum::kBackDecreasingWindow,TSpectrum::kBackOrder2,
 		//		TSpectrum::kTRUE, TSpectrum::kBackSmoothing3,TSpectrum::kFALSE);
 
-		for (int i=0; i< length; i++) {
+		for (size_t i=0; i< pulse.size(); i++) {
 			pulse[i] = pulse[i] - baseline[i];
 		}
 	}
@@ -378,24 +373,24 @@ int PulseAnalysis::Baseline_restore (float* pulse, float* baseline, int length, 
 		for (int i = 0; i < iterations; i++) {x += pulse[i];}
 		x = x / (float)iterations;
 
-		for (int i = 0; i < length; i++) {
+		for (size_t i = 0; i < pulse.size(); i++) {
 			pulse[i] -= x;
 		}
 	}
 
 	if (method == 3) {
 		int j = 0;
-		for (int i = 0; i < length; i++) {
-			if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
+		for (size_t i = 0; i < pulse.size(); i++) {
+		for (auto value : pulse) {
+			if(value > j) { j = (int)value; k = i;}
 		}
 
 		x = 0; y = 0;
 		for (int i = 0; i < iterations; i++) {x += pulse[i];}
 		x = x/(float)iterations;
 
-		for (int i = 0; i < length; i++)
-		{
-			pulse[i] -= x;
+		for (auto & value : pulse) {
+			value -= x;
 		}
 	}
 
