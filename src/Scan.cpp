@@ -57,11 +57,12 @@ int Scan (){
 	static std::array< Can, 13 > det;
 	bool beamON, trg;
 
-  ifstream fp[16];
+	const int numFiles = 13;
+	std::array< ifstream, numFiles > fp;
 
-  string 	line, fileheader;
+	string fileheader;
 
-  int i,j,k, pposition,
+	int j,k, pposition,
     Tracelength,
     eventlength;
 
@@ -212,10 +213,8 @@ int Scan (){
   float psd_opt[20];
   //tt->Branch("psd_opt", &psd_opt, "psd_opt[20]/F");
 
-  const int numFiles = 13;
-
 	// Open files
-	for (i = 0; i < numFiles; i++) {
+	for (int i = 0; i < numFiles; i++) {
 		openfile = prefix + "_wave" + to_string(i) + ".dat";
 		cout << " Opening file: " << openfile;
 		fp[i].open(openfile, std::ifstream::in | std::ifstream::binary);
@@ -268,7 +267,7 @@ int Scan (){
 					temp = 0;
 
 					// Get traces
-					for (i = 0; i < Tracelength; i++) {
+					for (int i = 0; i < Tracelength; i++) {
 						if (!fp[j].read((char*)&buffer16, 2)) {break;}
 						if (j < 12) {
 							pulse.push_back(16383 - (float) buffer16);
@@ -297,13 +296,14 @@ int Scan (){
 							pposition = std::distance(pulse.begin(), maxElement);
 
 							// Fill the bins.
-							for (auto value : pulse) {
+							for (size_t i=0; i < pulse.size(); i++) {
+								auto & value = pulse[i];
 								if (j==0) {trace0->SetBinContent(i, value);}
 								if (j==1) {trace1->SetBinContent(i, value);}
 								trace0C->SetBinContent(i, value);
 							}
-							for (auto value : CMAtrace) {
-								traceCMA->SetBinContent(i, value);
+							for (size_t i=0; i < CMAtrace.size(); i++) {
+								traceCMA->SetBinContent(i, CMAtrace[i]);
 							}
 
 
@@ -320,7 +320,7 @@ int Scan (){
           // PSD integration
           float offset = 12.0; // original 12
           if (pposition - 10 > 0 && pposition + 100 < Tracelength) {
-            for (i = (pposition - 10); i < (pposition + 100); i++) {
+            for (int i = (pposition - 10); i < (pposition + 100); i++) {
               paraL += pulse[i];
 					    if (i > pposition + offset) { paraS += pulse[i];}
 				    }
@@ -375,8 +375,7 @@ int Scan (){
 
 }
 
-  for (i = 0; i < numFiles; i++)
-    {
+  for (int i = 0; i < numFiles; i++) {
       if(fp[j].is_open()) fp[j].close();
     }
   ff->cd();
