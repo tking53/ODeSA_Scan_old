@@ -65,7 +65,7 @@ public :
 	int				Half_Integral(float*, int, float*);
 	int				Smooth(float*, int, int, int, float);
 	int				HPGe(float*, int, float*);
-	std::vector< float >	CMA_Filter(std::vector<float>, size_t, float, float);
+	std::vector< float >	CMA_Filter(const std::vector<float> &, size_t, float, float);
 };
 
 /** Constructor  */
@@ -110,7 +110,7 @@ void PulseAnalysis::GetVersion()
 *			CMAtrace - output CMA trace
 *	----------------------------------------------------
 */
-std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, size_t halfWidth, float preloadValue, float rejectThreshold)
+std::vector< float > PulseAnalysis::CMA_Filter(const std::vector< float > & waveform, size_t halfWidth, float preloadValue, float rejectThreshold)
 {
 	deque<float> movingBaselineFilter;
 	std::vector< float > CMAtrace;

@@ -66,8 +66,6 @@ int Scan (){
     Tracelength,
     eventlength;
 
-	std::vector< float > pulse, CMAtrace;
-
   Float_t amplitude,
     risetime,
     falltime,
@@ -212,15 +210,22 @@ int Scan (){
   float psd_opt[20];
   //tt->Branch("psd_opt", &psd_opt, "psd_opt[20]/F");
 
-  // Open files
-  for (int i = 0; i < numFiles; i++) {
-	  openfile = prefix + "_wave" + to_string(i) + ".dat";
-	  cout << " Opening file: " << openfile;
-	  fps[i].open(openfile, std::ifstream::in | std::ifstream::binary);
+	// Open files
+	bool valid = false;
+	for (int i = 0; i < numFiles; i++) {
+		openfile = prefix + "_wave" + to_string(i) + ".dat";
+		cout << " Opening file: " << openfile;
+		fps[i].open(openfile, std::ifstream::in | std::ifstream::binary);
 
-	  if (fps[i].is_open()) {cout << " - Open!" << endl;}
-	  else {{cout << " - Failed!" << endl;} }
-  }
+		if (fps[i].is_open()) {
+			cout << " - Open!" << endl;
+			valid = true;
+		}
+	  else {cout << " - Failed!" << endl;}
+	}
+	if (! valid) {
+		cerr << "No valid files found!" << endl;
+	}
 
   runtime = 0;
   prevtime = 0;
@@ -257,6 +262,8 @@ int Scan (){
 			tac = 0;
 			pposition = -1;
 
+			std::vector< float > pulse;
+
 			// Get traces
 			for (int i = 0; i < Tracelength; i++) {
 				if (!fp.read((char*)&buffer16, 2)) {break;}
@@ -278,7 +285,7 @@ int Scan (){
 			if (Tracelength > 1) {
 				// Process trace
 				// Get a Continuous Moving Average (CMA) of the pulse.
-				CMAtrace = Analysis->CMA_Filter(pulse, 10, pulse[0], 3.5 );
+				std::vector< float > CMAtrace = Analysis->CMA_Filter(pulse, 10, pulse[0], 3.5 );
 				// Subtract the CMA from the pulse
 				std::transform(pulse.begin(), pulse.end(), CMAtrace.begin(), pulse.begin(), std::minus<int>());
 
@@ -356,7 +363,7 @@ int Scan (){
 		}
 		tt->Fill();
       TEvt++;
-      if (TEvt % 1000==0) {cout << "\rEvent counter: " << TEvt << flush;}
+      if (TEvt % 1000 == 0) {cout << "\rEvent counter: " << TEvt << flush;}
 
 	}
 
