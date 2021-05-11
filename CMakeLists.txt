@@ -14,6 +14,18 @@ endif ()
 message(STATUS "Installing to ${CMAKE_INSTALL_PREFIX}")
 
 #----------------------------------------------------------------------------
+# Define the default build type
+#
+IF(NOT CMAKE_BUILD_TYPE)
+	SET(CMAKE_BUILD_TYPE Release CACHE STRING
+		"Build type, options are: None Debug Release
+			RelWithDebInfo MinSizeRel."
+		FORCE)
+	message(STATUS "Build type not defined, using default.")
+ENDIF(NOT CMAKE_BUILD_TYPE)
+message(STATUS "Build type: ${CMAKE_BUILD_TYPE}")
+
+#----------------------------------------------------------------------------
 # Treat warnings as errors for testing.
 #
 option(WARNINGS_AS_ERRORS "Treat all warnings as errors." OFF)
