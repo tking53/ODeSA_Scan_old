@@ -67,8 +67,6 @@ int Scan (){
     eventlength;
 
 	std::vector< float > pulse, CMAtrace;
-	float SG_pulse[350], SGderv2_pulse[350], baseline[350];
-
 
   Float_t amplitude,
     risetime,
@@ -80,13 +78,8 @@ int Scan (){
     paraS,
     runtime;
 
-  // For SG filtered pulse
-  Float_t trace_min, trace_max;
-  int trace_min_loc, trace_max_loc;
-  bool zero_cross;
-
-  char 	filename[250],
-    prompt[10],
+	std::string filename;
+  char prompt[10],
     runnum[250],
     interrputPrompt;
 
@@ -195,7 +188,7 @@ int Scan (){
   cout << "Run binary file prefix ('../run#'): ";
   cin >> prefix;
 
-  TFile *ff = new TFile(filename, "RECREATE");
+  TFile *ff = new TFile((filename + ".root").c_str(), "RECREATE");
 
   TTree *tt = new TTree("T", fileheader.c_str());
 
@@ -203,8 +196,6 @@ int Scan (){
 	  tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
   }
   //tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
-  //tt->Branch("X",&steerer_X,"X steerer");
-  //tt->Branch("Y",&steerer_Y,"Y steerer");
 
   TH1F *trace0 = new TH1F("trace0","Trace for channel 0",200,0,199);
   tt->Branch("trace0","TH1F", &trace0);
@@ -244,8 +235,6 @@ int Scan (){
 	  for (int detNum=0; detNum < numFiles; detNum++) {
 		  // Stop after nth events...
 		  //if (TEvt > 1000000) {break;}
-
-		  trace_min = 0;
 
 		  // Binary parsing
 			auto & fp = fps[detNum];
