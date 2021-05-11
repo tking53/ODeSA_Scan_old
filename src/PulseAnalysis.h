@@ -42,7 +42,7 @@ protected :
 	float 				PSD, integralS, integralL, sumL, sumS;
 	float 				linear[4], pulse_temp[2000], summing[2000], MovingAverage[2000];
 	float 				w,x,y,z;
-	int 				i,j,k,l,m,n;
+	int 				j,k,l,m,n;
 	int 				return_code	;
 	bool				positive, negative;
 
@@ -61,11 +61,11 @@ public :
 	int				Derivative(float*, int, int);
 	int				Integral(float*, int);
 	int				PeakFinder (float*, int, int, int, int, int*, int*);
-	int				OptimizePSD (float*, int, int, int, int, int, float*, float*);
+	int				OptimizePSD (const std::vector< float >, int, int, int, int, float*, float*);
 	int				Half_Integral(float*, int, float*);
 	int				Smooth(float*, int, int, int, float);
 	int				HPGe(float*, int, float*);
-	std::vector< float >	CMA_Filter(std::vector<float>, int, float, float);
+	std::vector< float >	CMA_Filter(std::vector<float>, size_t, float, float);
 };
 
 /** Constructor  */
@@ -110,7 +110,7 @@ void PulseAnalysis::GetVersion()
 *			CMAtrace - output CMA trace
 *	----------------------------------------------------
 */
-std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, int halfWidth, float preloadValue, float rejectThreshold)
+std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, size_t halfWidth, float preloadValue, float rejectThreshold)
 {
 	deque<float> movingBaselineFilter;
 	std::vector< float > CMAtrace;
@@ -118,14 +118,13 @@ std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, in
 	float movingBaselineValue = 0;
 
 	if( preloadValue > -7777 ) {
-		for( i = 0; i < halfWidth; i++ ) {
+		for(size_t i = 0; i < halfWidth; i++ ) {
 			movingBaselineFilter.push_back( preloadValue );
 			movingBaselineValue += preloadValue;
 		}
 	}
 
-
-	for( i = 0; i < halfWidth; i++ ) {
+	for(size_t i = 0; i < halfWidth; i++ ) {
 		if( preloadValue > -7777 ) {
 			if( fabs( waveform[i] - movingBaselineValue/movingBaselineFilter.size() ) >= rejectThreshold ) {
 				continue;
@@ -137,21 +136,14 @@ std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, in
 
 	for(auto value : waveform) {
 		if( fabs( value - movingBaselineValue/movingBaselineFilter.size() ) < rejectThreshold  ) {
-			if( i + halfWidth < waveform.size() ) {
-				//            we're still in valid lengths
-				if( movingBaselineFilter.size() >= halfWidth*2 + 1 ) {
-					//                filter is fully occupied, pop as we move
-					movingBaselineValue -= movingBaselineFilter.front();
-					movingBaselineFilter.pop_front();
-				}
-
-				movingBaselineValue += value;
-				movingBaselineFilter.push_back( value );
-			}
-			else {
+			if( movingBaselineFilter.size() >= halfWidth * 2 + 1 ) {
+				// filter is fully occupied, pop as we move
 				movingBaselineValue -= movingBaselineFilter.front();
 				movingBaselineFilter.pop_front();
 			}
+
+			movingBaselineValue += value;
+			movingBaselineFilter.push_back( value );
 		}
 		CMAtrace.push_back(movingBaselineValue / movingBaselineFilter.size());
 	}
@@ -166,8 +158,7 @@ std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, in
 *		  input pulse over a user defined range for evaluation.
 *
 *	Inputs:
-*			pulse - input array
-*			length - the length of pulse
+*			pulse - input vector
 *			start - start index of long integral
 *			stop - stop index of both integrals
 *			lower - lower index range of short integral
@@ -175,15 +166,13 @@ std::vector< float > PulseAnalysis::CMA_Filter(std::vector< float > waveform, in
 *			method - see above...
 *	----------------------------------------------------
 */
-int PulseAnalysis::OptimizePSD (float* pulse, int length, int start, int stop, int lower, int upper, float* paraL, float* paraS)
+int PulseAnalysis::OptimizePSD (const std::vector< float > pulse, int start, int stop, int lower, int upper, float* paraL, float* paraS)
 {
-	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 	if ((upper - lower) < 0) {return -1;}
 	if ((upper - lower) < sizeof(paraS)/sizeof(float)) {return -1;}
 
-
 	j = 0;
-	for (i = 0; i < length; i++)
+	for (int i = 0; i < pulse.size(); i++)
 	{
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
 	}
@@ -191,7 +180,7 @@ int PulseAnalysis::OptimizePSD (float* pulse, int length, int start, int stop, i
 	// Constant fraction discrimination (CFD) at 50% of amplitude
 
 	j = l;
-	for(i = j - 50; i < j; i++)
+	for(int i = j - 50; i < j; i++)
 	{
 		if(pulse[i] < (pulse[l])*0.5) {k = i;}
 	}
@@ -200,7 +189,7 @@ int PulseAnalysis::OptimizePSD (float* pulse, int length, int start, int stop, i
 			- pulse[k - 1])/3))+ ((float)k - 1);
 
 
-	if((k - start) > 0 && (k + start) < length) {
+	if((k - start) > 0 && (k + start) < pulse.size()) {
 			// Initialization
 			integralL = 0;
 			for ( j = 0; j < upper - lower; j++){
@@ -208,7 +197,7 @@ int PulseAnalysis::OptimizePSD (float* pulse, int length, int start, int stop, i
 			}
 
 			// Begin integration using trapezoidal rule
-			for (i = (k - start); i < (k + stop); i++) {
+			for (int i = (k - start); i < (k + stop); i++) {
 
 				integralL += 0.5*(pulse[i-1] + pulse[i]);
 
@@ -260,23 +249,19 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
 	j = 0;
-	for (i = 0; i < length; i++)
-	{
+	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
 	}
 
 	// Constant fraction discrimination (CFD) at 50% of amplitude
 
 	j = l;
-	for(i = j - 50; i < j; i++)
-	{
+	for(int i = j - 50; i < j; i++) {
 		if(pulse[i] < (pulse[l])*0.5) {k = i;}
 	}
 
 	x = ((0.5*(pulse[l]) - pulse[k - 1])/((pulse[k + 1]
 			- pulse[k - 1])/3))+ ((float)k - 1);
-
-
 
 	if((k - start) > 0 && (k + start) < length) {
 			// Initialization
@@ -284,7 +269,7 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 
 			// Begin integration using trapezoidal rule
 			if (method == 1) {
-				for (i = (k - start); i < (k + stop); i++) {
+				for (int i = (k - start); i < (k + stop); i++) {
 
 					integralL += 0.5*(pulse[i-1] + pulse[i]);
 
@@ -300,7 +285,7 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 				integralL = pulse[k - start];
 				integralL = pulse[k + offset];
 
-				for (i = (k - start) + 1; i < (k + stop) - 2; i+=2) {
+				for (int i = (k - start) + 1; i < (k + stop) - 2; i+=2) {
 
 					sumL += pulse[i];
 
@@ -312,7 +297,7 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 
 				sumL = 0;
 				sumS = 0;
-				for (i = (k - start + 2); i < (k + stop) - 3; i+=2) {
+				for (int i = (k - start + 2); i < (k + stop) - 3; i+=2) {
 
 					sumL += pulse[i];
 
@@ -331,7 +316,7 @@ int PulseAnalysis::PSD_Integration (float* pulse, int length, int start, int sto
 
 			// Begin integration using rectangular method
 			if (method == 3) {
-				for (i = (k - start); i < (k + stop); i++) {
+				for (int i = (k - start); i < (k + stop); i++) {
 
 					integralL += pulse[i];
 
@@ -378,7 +363,7 @@ int PulseAnalysis::Baseline_restore (float* pulse, float* baseline, int length, 
 
 	if (method == 1)
 	{
-		for (i=0; i< length; i++) {
+		for (int i=0; i< length; i++) {
 			baseline[i] = pulse[i] + 0.3;
 		}
 
@@ -388,36 +373,32 @@ int PulseAnalysis::Baseline_restore (float* pulse, float* baseline, int length, 
 		//TSpectrum::Background(baseline, length, iterations,TSpectrum::kBackDecreasingWindow,TSpectrum::kBackOrder2,
 		//		TSpectrum::kTRUE, TSpectrum::kBackSmoothing3,TSpectrum::kFALSE);
 
-		for (i=0; i< length; i++) {
+		for (int i=0; i< length; i++) {
 			pulse[i] = pulse[i] - baseline[i];
 		}
 	}
 
-	if (method == 2)
-	{
+	if (method == 2) {
 		x = 0;
-		for (i = 0; i < iterations; i++) {x += pulse[i];}
-		x = x/(float)iterations;
+		for (int i = 0; i < iterations; i++) {x += pulse[i];}
+		x = x / (float)iterations;
 
-		for (i = 0; i < length; i++)
-		{
+		for (int i = 0; i < length; i++) {
 			pulse[i] -= x;
 		}
 	}
 
-	if (method == 3)
-	{
+	if (method == 3) {
 		j = 0;
-		for (i = 0; i < length; i++)
-		{
+		for (int i = 0; i < length; i++) {
 			if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 		}
 
 		x = 0; y = 0;
-		for (i = 0; i < iterations; i++) {x += pulse[i];}
+		for (int i = 0; i < iterations; i++) {x += pulse[i];}
 		x = x/(float)iterations;
 
-		for (i = 0; i < length; i++)
+		for (int i = 0; i < length; i++)
 		{
 			pulse[i] -= x;
 		}
@@ -442,8 +423,7 @@ int PulseAnalysis::Parameters (float* pulse, int length, int range, float* CFD, 
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
 	j = 0;
-	for (i = 0; i < length; i++)
-	{
+	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 	}
 
@@ -454,8 +434,7 @@ int PulseAnalysis::Parameters (float* pulse, int length, int range, float* CFD, 
 
 
 	j = k;
-	for(i = j - 50; i < j; i++)
-	{
+	for(int i = j - 50; i < j; i++) {
 		if(pulse[i] < (*amplitude)*0.5) {k = i;}
 	}
 
@@ -481,13 +460,13 @@ int PulseAnalysis::Parameters (float* pulse, int length, int range, float* CFD, 
 
 	// Risetime by 10-90% Method
 	j = k;
-	for(i = j - 50; i < j; i++)
+	for(int i = j - 50; i < j; i++)
 	{
 		if(pulse[i] < (*amplitude)*0.9) {k = i;}
 	}
 
 	memset(linear, 0, sizeof(linear));
-	for(i = (k - (int)(range/2)); i <= (k - (int)(range/2) + range); i++) {
+	for(int i = (k - (int)(range/2)); i <= (k - (int)(range/2) + range); i++) {
 		linear[0] += i*pulse[i];
 		linear[1] += i;
 		linear[2] += pulse[i];
@@ -502,13 +481,12 @@ int PulseAnalysis::Parameters (float* pulse, int length, int range, float* CFD, 
 		- linear[1]*linear[2])/(linear[3] - linear[1]*linear[1]))) + (k - (int)(range/2));
 
 	j = k;
-	for(i = j - 50; i < j; i++)
-	{
+	for(int i = j - 50; i < j; i++) {
 		if(pulse[i] < (*amplitude)*0.1) {k = i;}
 	}
 
 	memset(linear, 0, sizeof(linear));
-	for(i = (k - (int)(range/2)); i <= (k - (int)(range/2) + range); i++) {
+	for(int i = (k - (int)(range/2)); i <= (k - (int)(range/2) + range); i++) {
 		linear[0] += i*pulse[i];
 		linear[1] += i;
 		linear[2] += pulse[i];
@@ -547,17 +525,16 @@ int PulseAnalysis::Parameters2 (float* pulse, int length, int range, float* CFD,
 
 	j = 0;
 	m=0;
-	for (i = 0; i < length; i++)
-	  {
-	    if(pulse[i] > j) { j = (int)pulse[i]; k = i; m = i;}
-	  }
+	for (int i = 0; i < length; i++) {
+		if(pulse[i] > j) { j = (int)pulse[i]; k = i; m = i;}
+	}
 
 	*amplitude = pulse[k];
 
 	// Constant fraction discrimination (CFD) at 50% of amplitude
 	float frac = 0.5;
 	j = k;
-	for(i = j - 10; i < j; i++)
+	for(int i = j - 10; i < j; i++)
 	  {
 	    if(pulse[i] > (*amplitude)*0.5)
 	      {
@@ -616,15 +593,13 @@ int PulseAnalysis::PeakFinder (float* pulse, int length, int sigma, int range, i
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
 	//locPeaks = new int*[10];
-	for(i = 0; i < 10; ++i)
-	{
+	for(int i = 0; i < 10; ++i) {
 		//locPeaks[i] = new int[3];
 	}
 
 // 	// Calculate first derivative and average of first derv.
 	x = 0;
-	for (i = 0; i < length - 1; i++)
-	{
+	for (int i = 0; i < length - 1; i++) {
 		pulse_temp[i] = pulse[i + 1] - pulse[i];
 		x += pulse_temp[i];
 	}
@@ -633,7 +608,7 @@ int PulseAnalysis::PeakFinder (float* pulse, int length, int sigma, int range, i
 	// Determine standard deviation of baseline
 	x = x/range;
 	z = 0;
-	for (i = 0; i < range; i++) { z += pow((pulse_temp[i] - x), 2); }
+	for (int i = 0; i < range; i++) { z += pow((pulse_temp[i] - x), 2); }
 	z = sqrt(z/range);
 
 	*numPeaks = 0;
@@ -644,7 +619,7 @@ int PulseAnalysis::PeakFinder (float* pulse, int length, int sigma, int range, i
 
 	j = 0; k = 0; x = 0; y = 0; m = 0; n = 0;
 	positive = 0; negative = 0;
-	for (i = 0; i < length - 5; i++)
+	for (int i = 0; i < length - 5; i++)
 	{
 		if( pulse_temp[i] <= w && pulse_temp[i] >= -1*w)
 		{
@@ -703,7 +678,7 @@ int PulseAnalysis::Derivative(float* pulse, int length, int order)
 
 	for(j = 1; j <= order; j++)
 	{
-		for (i = 0; i < length - j; i++)
+		for (int i = 0; i < length - j; i++)
 		{
 			pulse[i] = pulse[i + 1] - pulse[i];
 		}
@@ -724,7 +699,7 @@ int PulseAnalysis::Integral(float* pulse, int length)
 {
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
-	for (i = 0; i < length - 1; i++)
+	for (int i = 0; i < length - 1; i++)
 	{
 			pulse[i + 1] = pulse[i + 1] + pulse[i];
 	}
@@ -751,7 +726,7 @@ int PulseAnalysis::Time_Pickoff (float* pulse, int length, int range, int low, i
 	  {
 	    max = 0;
 
-	    for (i = low; i <= high; i++)
+	    for (int i = low; i <= high; i++)
 	      {
 		if (pulse[i] > max)
 		  {
@@ -762,7 +737,7 @@ int PulseAnalysis::Time_Pickoff (float* pulse, int length, int range, int low, i
 
 	// Constant fraction discrimination (CFD) at 50% of amplitude
 
-	    for(i = low; i < index; i++)
+	    for(int i = low; i < index; i++)
 	      {
 		if(pulse[i] < (max*0.5)) {k = i;}
 	      }
@@ -780,7 +755,7 @@ int PulseAnalysis::Time_Pickoff (float* pulse, int length, int range, int low, i
 	    max = 0;
 
 	// Find first value over 'range'
-	    for (i = low; i <= high; i++)
+	    for (int i = low; i <= high; i++)
 	      {
 		if (pulse[i] > range)
 		  {
@@ -804,15 +779,14 @@ int PulseAnalysis::PSD_Zerocross (float* pulse, int length, int integration, int
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
 	j = 0;
-	for (i = 0; i < length; i++)
-	{
+	for (int i = 0; i < length; i++) {
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 	}
 
 	// CFD timing pickoff at 50% of amplitude
 	memset(linear, 0, sizeof(linear));
 
-	for(i = (k - (int)(3/2)); i <= (k - (int)(3/2) + 3); i++) {
+	for(int i = (k - (int)(3/2)); i <= (k - (int)(3/2) + 3); i++) {
 		linear[0] += i*pulse[i];
 		linear[1] += i;
 		linear[2] += pulse[i];
@@ -828,7 +802,7 @@ int PulseAnalysis::PSD_Zerocross (float* pulse, int length, int integration, int
 
 	// Shaping amplifier
 	memset(pulse_temp, 0, sizeof(pulse_temp));
-	for(i = (int)integration; i < (length - integration); i++) {
+	for(int i = (int)integration; i < (length - integration); i++) {
 		for(j = 0; j < integration; j++) {
 			if((j + i) >= 0 && (j + i) < length) {pulse_temp[i] = pulse_temp[i] + pulse[j + i];}
 		}
@@ -842,11 +816,9 @@ int PulseAnalysis::PSD_Zerocross (float* pulse, int length, int integration, int
 
 
 	memset(pulse_temp, 0, sizeof(pulse_temp));
-	for (i = 0; i < (length - 1); i++) {pulse_temp[i] = pulse[i + 1] - pulse[i];}
+	for (int i = 0; i < (length - 1); i++) {pulse_temp[i] = pulse[i + 1] - pulse[i];}
 
-	//for (i=0; i< length; i++) {
-	//	pulse[i] = pulse_temp[i];
-	//}
+	//for (int i=0; i< length; i++) {pulse[i] = pulse_temp[i];}
 	return 0;
 }
 
@@ -866,12 +838,12 @@ int PulseAnalysis::Half_Integral(float* pulse, int length, float* integral)
 
 	*integral = 0;
 	j = 0;
-	for (i = 0; i < length; i++)
+	for (int i = 0; i < length; i++)
 	{
 		if(pulse[i] > j) { j = (int)pulse[i]; k = i;}
 	}
 
-	for (i = 0; i < length ; i++)
+	for (int i = 0; i < length ; i++)
 	{
 		if(pulse[i] < (0.5*pulse[k]))
 		{
@@ -910,12 +882,12 @@ int PulseAnalysis::Smooth(float* pulse, int length, int iterations, int method, 
 	// Moving average
 	if (method == 1)
 	{
-		for (i = 2; i < length - 3; i++)
+		for (int i = 2; i < length - 3; i++)
 		{
 			MovingAverage[i] = 0;
 			for (j = i - 2; j <= i + 2; j++) {MovingAverage[i] += pulse[j];}
 		}
-		for (i =1; i < length - 3; i++)
+		for (int i =1; i < length - 3; i++)
 		{
 			pulse[i] = (MovingAverage[i]/5) ;
 		}
@@ -964,7 +936,7 @@ int PulseAnalysis::PSD_Integration_Afterpulsing (float* pulse, int length, int s
 	if (length < sizeof(pulse)/sizeof(float)) {return -1;}
 
 	j = 0;
-	for (i = 0; i < length; i++)
+	for (int i = 0; i < length; i++)
 	{
 		if(pulse[i] > j) { j = (int)pulse[i]; l= i;}
 	}
@@ -972,7 +944,7 @@ int PulseAnalysis::PSD_Integration_Afterpulsing (float* pulse, int length, int s
 	// Constant fraction discrimination (CFD) at 50% of amplitude
 
 	j = l;
-	for(i = j - 50; i < j; i++)
+	for(int i = j - 50; i < j; i++)
 	{
 		if(pulse[i] < (pulse[l])*0.5) {k = i;}
 	}
@@ -988,7 +960,7 @@ int PulseAnalysis::PSD_Integration_Afterpulsing (float* pulse, int length, int s
 			integralS = 0; integralL = 0; *ap = 0; j=0;
 
 			// Begin integration using rectangular method
-            for (i = (k - start); i < (k + stop); i++) {
+            for (int i = (k - start); i < (k + stop); i++) {
 
                 integralL += pulse[i];
 
