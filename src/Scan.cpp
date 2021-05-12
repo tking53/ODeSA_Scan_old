@@ -55,7 +55,12 @@ typedef struct
 
 } Can;
 
-int Scan (std::string prefix, std::string filename, std::string treeDesc="", int num=0){
+enum class CfdMode {Lin, Fit};
+
+float CfdFit(TH1 *trace, int pposition);
+float CfdLin(const std::vector< float > & pulse, int pposition);
+
+int Scan (std::string prefix, std::string filename, std::string treeDesc="", CfdMode cfdMode=CfdMode::Lin, int num=0){
 	static std::array< Can, 13 > dets;
 
 	const int numFiles = 13;
@@ -68,7 +73,6 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", int
 
   TSpectrum *s = new TSpectrum();
 
-  TF1 *f1 = new TF1("f1","gaus",0,300);
 
   /** ----------------------------------------------------
    *	Calibrations and threshold
@@ -140,27 +144,6 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", int
   PulseAnalysis *Analysis = new PulseAnalysis();
 
 
-  /** ----------------------------------------------------
-	*	Program start...
-	*   ----------------------------------------------------
-	*/
-
-  cout << " ------------------------------------------------ " << endl;
-  cout << " | Scan.cpp - binary version                     |" << endl;
-  cout << " |   Experiment: 20Ne(d,n)                       |" << endl;
-  cout << " |   Date: May 2021                              |" << endl;
-  cout << " |   Calibration used: None                      |" << endl;
-  cout << " |   ORNL Nuclear Astrophysics                   |" << endl;
-  cout << " ------------------------------------------------ " << endl;
-
-	//cout << "Root file name to be created: ";
-	//cin >> filename;
-
-	//cout << "Root tree description: ";
-	//cin >> treeDesc;
-
-	//cout << "Run binary file prefix ('../run#'): ";
-	//cin >> prefix;
 
   TFile *ff = new TFile(filename.c_str(), "RECREATE");
 
@@ -294,14 +277,14 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", int
 
 				if (trg) {
 					if (detNum < 13) {
-						// CFD timing
-						f1->SetParameters(1.0, (double)pposition, 0.1);
-						trace0->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
-						trace0->Fit("f1","RQ");
-						float mu = (float)f1->GetParameter(1);
-						float sigma = (float)f1->GetParameter(2);
-
-						CFD = mu - sqrtf(1.38629*sigma*sigma);
+						switch (cfdMode) {
+							case CfdMode::Fit:
+								CFD = CfdFit(trace0, pposition);
+								break;
+							case CfdMode::Lin:
+								CFD = CfdLin(pulse, pposition);
+								break;
+						}
 					}
 					else {
 						CFD = (float)pposition;
@@ -371,20 +354,57 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", int
 	return 0;
 }
 
+float CfdFit(TH1 *trace, int pposition) {
+	static TF1 *f1 = new TF1("f1","gaus",0,300);
+
+	// CFD timing
+	f1->SetParameters(1.0, (double)pposition, 0.1);
+	trace->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
+	trace->Fit("f1","RQ");
+	float mu = (float)f1->GetParameter(1);
+	float sigma = (float)f1->GetParameter(2);
+
+	return mu - sqrtf(1.38629*sigma*sigma);
+}
+
+float CfdLin(const std::vector< float > & pulse, int pposition) {
+	// Timing signal using a linear interpolation
+	float xy_ = 0;
+	float x_ = 0;
+	float y_ = 0;
+	float x_2 = 0;
+
+	for(int i = pposition - 3; i <= pposition + 3; i++) {
+		x_ += i;
+		x_2 += i * i;
+		y_ += pulse[i];
+		xy_ += pulse[i] * i;
+	}
+
+	float m_ = ((7.0*xy_) - (x_*y_))/((7.0*x_2) - (x_*x_));
+	float b_ = ((y_*x_2) - (x_*xy_))/((7.0*x_2) - (x_*x_));
+
+	return (0.5 * pulse[pposition] - b_) / m_;
+}
+
+
 int main(int argc, char ** argv) {
+	std::string filename, treeDesc, prefix;
 	//Parser command arguments
 	cxxopts::Options parser(argv[0], std::string("E20003 Scan"));
 	parser.add_options("")
 		("n,num", "Number of events", cxxopts::value< int >()->default_value("0"), "NUM")
-		("desc", "Tree description", cxxopts::value< std::string >()->default_value(""), "DESC")
+		("desc", "Tree description", cxxopts::value(treeDesc)->default_value(""), "DESC")
+		("cfd", "CFD Mode (lin, fit)", cxxopts::value< std::string >()->default_value("lin"), "MODE")
+		("i,interactive", "Run interactively")
 		("h,help", "Help");
 
 	// Positional arguments
 	parser.parse_positional({"prefix", "output"});
 	parser.positional_help("<prefix> <output>");
 	parser.add_options("positional")
-		("prefix", "Prefix", cxxopts::value<std::string>()->default_value(""), "PREFIX")
-		("output", "Output", cxxopts::value<std::string>()->default_value(""), "OUTPUT");
+		("prefix", "Prefix", cxxopts::value(prefix)->default_value(""), "PREFIX")
+		("output", "Output", cxxopts::value(filename)->default_value(""), "OUTPUT");
 
 	// parse arguments
 	auto args = parser.parse(argc, argv);
@@ -395,13 +415,51 @@ int main(int argc, char ** argv) {
 		return 0;
 	}
 
-	if (args["output"].as<std::string>() == "") {
+
+	CfdMode cfdMode;
+	if (args["cfd"].as<std::string>() == "lin") {
+		cfdMode = CfdMode::Lin;
+	}
+	else if (args["cfd"].as<std::string>() == "fit") {
+		cfdMode = CfdMode::Fit;
+	}
+	else {
+		std::cerr << "ERROR: Unknown CFD Mode: '" << args["cfd"].as<std::string>() << "'!" << std::endl;
+		return 2;
+	}
+		
+	/** ----------------------------------------------------
+	 *	Program start...
+	 *   ----------------------------------------------------
+	 */
+
+	cout << " ------------------------------------------------ " << endl;
+	cout << " | Scan.cpp - binary version                     |" << endl;
+	cout << " |   Experiment: 20Ne(d,n)                       |" << endl;
+	cout << " |   Date: May 2021                              |" << endl;
+	cout << " |   Calibration used: None                      |" << endl;
+	cout << " |   ORNL Nuclear Astrophysics                   |" << endl;
+	cout << " ------------------------------------------------ " << endl;
+
+	if (args["interactive"].as<bool>()) {
+		cout << "Root file name to be created: ";
+		cin >> filename;
+
+		cout << "Root tree description: ";
+		cin >> treeDesc;
+
+		cout << "Run binary file prefix: ";
+		cin >> prefix;
+	}
+
+	if (filename == "") {
 		std::cerr << "ERROR: An output file was not provided!" << std::endl;
 		return 1;
 	}
 
-	return Scan(args["prefix"].as<std::string>(),
-	            args["output"].as<std::string>(),
-	            args["desc"].as<std::string>(),
+	return Scan(prefix,
+	            filename,
+	            treeDesc,
+					cfdMode,
 	            args["num"].as<int>());
 }
