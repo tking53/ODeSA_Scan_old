@@ -66,6 +66,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	uint16_t buffer16;
 
 	Double_t rf = -1;
+	Double_t ebit = -1;
 
   TSpectrum *s = new TSpectrum();
 
@@ -160,6 +161,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
   //tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
   tt->Branch("rf",&rf, "rf/D"); // RF timing signal
+  tt->Branch("ebit",&ebit, "ebit/D"); // RF timing signal
 
   int numSteps = 20;
   float psd_opt[20];
@@ -199,6 +201,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 		if (num && TEvt > num) {break;}
 
 		rf = -1;
+		ebit = -1;
 
 		// Loop over each channel
 		for (int detNum=0; detNum < numDets; detNum++) {
@@ -258,11 +261,13 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 			/** Liquid can processing **/
 			if (Tracelength > 1) {
-				// Process trace
-				// Get a Continuous Moving Average (CMA) of the pulse.
-				std::vector< float > CMAtrace = Analysis->CMA_Filter(pulse, 10, pulse[0], 3.5 );
-				// Subtract the CMA from the pulse
-				std::transform(pulse.begin(), pulse.end(), CMAtrace.begin(), pulse.begin(), std::minus<int>());
+				if (detNum < 13) {
+					// Process trace
+					// Get a Continuous Moving Average (CMA) of the pulse.
+					std::vector< float > CMAtrace = Analysis->CMA_Filter(pulse, 10, pulse[0], 3.5 );
+					// Subtract the CMA from the pulse
+					std::transform(pulse.begin(), pulse.end(), CMAtrace.begin(), pulse.begin(), std::minus<int>());
+				}
 
 				// Find the maximum element in the subtracted pulse.
 				auto maxElement = std::max_element(pulse.begin(), pulse.end());
@@ -323,6 +328,10 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 				case 14:
 					rf = Rf_KS(pulse);
+					break;
+
+				case 15:
+					ebit = pulse[0];
 					break;
 
 				default:
