@@ -169,6 +169,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 	// Open files
 	bool valid = false;
+	int file_length = 0;
 	for (int i = 0; i < numDets; i++) {
 		std::string openfile = prefix + "_wave" + to_string(i) + ".dat";
 		cout << " Opening file: " << openfile;
@@ -178,7 +179,12 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 			cout << " - Open!" << endl;
 			valid = true;
 		}
-	  else {cout << " - Failed!" << endl;}
+		else {cout << " - Failed!" << endl;}
+		if (! file_length && fps[i].is_open()) {
+			fps[i].seekg(0, std::ios::end);
+			file_length = fps[i].tellg();
+			fps[i].seekg(0, std::ios::beg);
+		}
 	}
 	if (! valid) {
 		cerr << "No valid files found!" << endl;
@@ -341,7 +347,10 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 		}
 		tt->Fill();
       TEvt++;
-      if (TEvt % 1000 == 0) {cout << "\rEvent counter: " << TEvt << flush;}
+      if (TEvt % 1000 == 0) {
+			int percentComplete = fps[0].tellg() / (float) file_length * 100;
+			cout << "\rEvent: " << TEvt << " " << percentComplete << "%" << flush;
+		}
 
 	}
 
