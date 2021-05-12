@@ -245,7 +245,8 @@ int Scan (){
 			bool trg = false;
 			int pposition = -1;
 
-			std::vector< float > pulse(350);
+			std::vector< float > pulse;
+			pulse.reserve(Tracelength);
 
 			// Get traces
 			for (int i = 0; i < Tracelength; i++) {
