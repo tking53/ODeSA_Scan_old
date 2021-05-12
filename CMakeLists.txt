@@ -43,6 +43,7 @@ endif(WARNINGS_AS_ERRORS)
 
 find_package(ROOT REQUIRED COMPONENTS Spectrum)
 
+add_subdirectory(cxxopts)
 add_subdirectory(src)
 
 

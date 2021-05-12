@@ -40,6 +40,8 @@
 #include "TSpectrum.h"
 #include "TF1.h"
 
+#include <cxxopts.hpp>
+
 using namespace std;
 
 typedef struct
@@ -53,7 +55,7 @@ typedef struct
 
 } Can;
 
-int Scan (){
+int Scan (std::string prefix, std::string filename, std::string treeDesc="", int num=0){
 	static std::array< Can, 13 > dets;
 
 	const int numFiles = 13;
@@ -151,19 +153,16 @@ int Scan (){
   cout << " |   ORNL Nuclear Astrophysics                   |" << endl;
   cout << " ------------------------------------------------ " << endl;
 
-	std::string filename;
-	cout << "Root file name to be created: ";
-	cin >> filename;
+	//cout << "Root file name to be created: ";
+	//cin >> filename;
 
-	std::string treeDesc;
-	cout << "Root tree description: ";
-	cin >> treeDesc;
+	//cout << "Root tree description: ";
+	//cin >> treeDesc;
 
-	std::string prefix;
-	cout << "Run binary file prefix ('../run#'): ";
-	cin >> prefix;
+	//cout << "Run binary file prefix ('../run#'): ";
+	//cin >> prefix;
 
-  TFile *ff = new TFile((filename + ".root").c_str(), "RECREATE");
+  TFile *ff = new TFile(filename.c_str(), "RECREATE");
 
   TTree *tt = new TTree("T", treeDesc.c_str());
 
@@ -218,7 +217,7 @@ int Scan (){
 	bool data_valid = true;
 	while (data_valid) {
 		// Stop after nth events...
-		//if (TEvt > 1000000) {break;}
+		if (num && TEvt > num) {break;}
 		for (int detNum=0; detNum < numFiles; detNum++) {
 
 		  // Binary parsing
@@ -293,15 +292,22 @@ int Scan (){
 					traceCMA->SetBinContent(i, CMAtrace[i]);
 				}
 
-				// CFD timing
-				//f1->SetParameters(1.0, (double)pposition, 0.1);
-				//trace0->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
-				//trace0->Fit("f1","RQ");
-				//float mu = (float)f1->GetParameter(1);
-				//float sigma = (float)f1->GetParameter(2);
+				if (trg) {
+					if (detNum < 13) {
+						// CFD timing
+						f1->SetParameters(1.0, (double)pposition, 0.1);
+						trace0->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
+						trace0->Fit("f1","RQ");
+						float mu = (float)f1->GetParameter(1);
+						float sigma = (float)f1->GetParameter(2);
 
-				//CFD = mu - sqrtf(1.38629*sigma*sigma);
-				//CFD = (float)pposition;
+						CFD = mu - sqrtf(1.38629*sigma*sigma);
+					}
+					else {
+						CFD = (float)pposition;
+					}
+				}
+				else {CFD = -1;}
 
 				// PSD integration
 				float offset = 12.0; // original 12
@@ -365,7 +371,37 @@ int Scan (){
 	return 0;
 }
 
-int main() {
+int main(int argc, char ** argv) {
+	//Parser command arguments
+	cxxopts::Options parser(argv[0], std::string("E20003 Scan"));
+	parser.add_options("")
+		("n,num", "Number of events", cxxopts::value< int >()->default_value("0"), "NUM")
+		("desc", "Tree description", cxxopts::value< std::string >()->default_value(""), "DESC")
+		("h,help", "Help");
 
-  return Scan();
+	// Positional arguments
+	parser.parse_positional({"prefix", "output"});
+	parser.positional_help("<prefix> <output>");
+	parser.add_options("positional")
+		("prefix", "Prefix", cxxopts::value<std::string>()->default_value(""), "PREFIX")
+		("output", "Output", cxxopts::value<std::string>()->default_value(""), "OUTPUT");
+
+	// parse arguments
+	auto args = parser.parse(argc, argv);
+
+	// Print help message if requested
+	if (args["help"].as<bool>()) {
+		std::cerr << parser.help({""});
+		return 0;
+	}
+
+	if (args["output"].as<std::string>() == "") {
+		std::cerr << "ERROR: An output file was not provided!" << std::endl;
+		return 1;
+	}
+
+	return Scan(args["prefix"].as<std::string>(),
+	            args["output"].as<std::string>(),
+	            args["desc"].as<std::string>(),
+	            args["num"].as<int>());
 }
