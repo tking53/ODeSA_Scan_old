@@ -30,6 +30,7 @@
 #include "TMath.h"
 #include "TSpectrum.h"
 #include "TF1.h"
+#include <TGraph.h>
 
 #include <cxxopts.hpp>
 
@@ -48,11 +49,12 @@ typedef struct
 
 enum class CfdMode {Lin, Fit};
 
-float CfdFit(TH1 *trace, int pposition);
+float CfdFit(const std::vector< float > & pulse, int pposition);
 float CfdLin(const std::vector< float > & pulse, int pposition);
 double Rf_KS(const std::vector< float > & pulse, float thresh=-1);
 
-int Scan (std::string prefix, std::string filename, std::string treeDesc="", CfdMode cfdMode=CfdMode::Lin, int num=0){
+int Scan (std::string prefix, std::string filename, std::string treeDesc="", CfdMode cfdMode=CfdMode::Lin, int num=0,
+	std::vector< short > traceChannels = {}){
 	const int numDets = 16;
 	static std::array< Can, numDets > dets;
 
@@ -138,27 +140,26 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
   PulseAnalysis *Analysis = new PulseAnalysis();
 
 
-
   TFile *ff = new TFile(filename.c_str(), "RECREATE");
 
   TTree *tt = new TTree("T", treeDesc.c_str());
 
-  for (int i=0;i < dets.size(); i++) {
-	  tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
-  }
+	for (int i=0;i < dets.size(); i++) {
+		tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
+	}
+
+	std::array< TH1F*, numDets > traceHists{nullptr};
+	for (auto ch : traceChannels) {
+		std::cout << "Storing traces for channel: " << ch << std::endl;
+		std::string name = "trace" + std::to_string(ch);
+		TH1F *trace = new TH1F(name.c_str(),
+		                       ("Trace for channel " + std::to_string(ch)).c_str(), 200, 0, 199);
+		traceHists[ch] = trace;
+		tt->Branch(name.c_str(), "TH1F", &traceHists[ch]);
+	}
+
   //tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
   tt->Branch("rf",&rf, "rf/D"); // RF timing signal
-
-  TH1F *trace0 = new TH1F("trace0","Trace for channel 0",200,0,199);
-  tt->Branch("trace0","TH1F", &trace0);
-  TH1F *trace1 = new TH1F("trace1","Trace for channel 1",200,0,199);
-  //tt->Branch("trace1","TH1F", &trace1);
-
-  TH1F *traceCMA = new TH1F("traceCMA","Trace for CMA",200,0,199);
-  //tt->Branch("traceCMA","TH1F", &traceCMA);
-
-  TH1F *trace0C = new TH1F("trace0C","Corrected trace for channel 0",200,0,199);
-  //tt->Branch("trace0C","TH1F", &trace0C);
 
   int numSteps = 20;
   float psd_opt[20];
@@ -244,11 +245,16 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 					pulse.push_back(16383 - (float) buffer16);
 				}
 				else {pulse.push_back(buffer16);}
-
-				// Added traces
-				if (detNum==0) {trace0->SetBinContent(i, pulse.back());}
-				else if (detNum==1) {trace1->SetBinContent(i, pulse.back());}
 			}
+
+			// If a histogram is defined for the trace we set the values.
+			if (traceHists[detNum]) {
+				TH1* trace = traceHists[detNum];
+				for (int i = 0; i < Tracelength; i++) {
+					trace->SetBinContent(i, pulse[i]);
+				}
+			}
+
 
 			/** Liquid can processing **/
 			if (Tracelength > 1) {
@@ -263,22 +269,11 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 				amplitude = *maxElement;
 				pposition = std::distance(pulse.begin(), maxElement);
 
-				// Fill the bins.
-				for (size_t i=0; i < pulse.size(); i++) {
-					auto & value = pulse[i];
-					if (detNum==0) {trace0->SetBinContent(i, value);}
-					else if (detNum==1) {trace1->SetBinContent(i, value);}
-					trace0C->SetBinContent(i, value);
-				}
-				for (size_t i=0; i < CMAtrace.size(); i++) {
-					traceCMA->SetBinContent(i, CMAtrace[i]);
-				}
-
 				if (trg) {
 					if (detNum < 13) {
 						switch (cfdMode) {
 							case CfdMode::Fit:
-								CFD = CfdFit(trace0, pposition);
+								CFD = CfdFit(pulse, pposition);
 								break;
 							case CfdMode::Lin:
 								CFD = CfdLin(pulse, pposition);
@@ -406,13 +401,17 @@ double Rf_KS(const std::vector< float > & pulse, float thresh /* = -1 */) {
 
 }
 
-float CfdFit(TH1 *trace, int pposition) {
-	static TF1 *f1 = new TF1("f1","gaus",0,300);
+float CfdFit(const std::vector< float > & pulse, int pposition) {
+	TGraph g;
+   int start = pposition - 5;
+   int stop = pposition + 2;
+	for (size_t i=start; i < stop; ++i) g.SetPoint(i - start, i, pulse[i]);
 
-	// CFD timing
+	static TF1 *f1 = new TF1("f1", "gaus", 0, pulse.size());
 	f1->SetParameters(1.0, (double)pposition, 0.1);
-	trace->GetXaxis()->SetRangeUser(pposition - 5, pposition + 1);
-	trace->Fit("f1","RQ");
+
+	g.Fit("f1","Q");
+
 	float mu = (float)f1->GetParameter(1);
 	float sigma = (float)f1->GetParameter(2);
 
@@ -442,12 +441,15 @@ float CfdLin(const std::vector< float > & pulse, int pposition) {
 
 int main(int argc, char ** argv) {
 	std::string filename, treeDesc, prefix;
+	std::vector< short > traceChannels;
+
 	//Parser command arguments
 	cxxopts::Options parser(argv[0], std::string("E20003 Scan"));
 	parser.add_options("")
 		("n,num", "Number of events", cxxopts::value< int >()->default_value("0"), "NUM")
 		("desc", "Tree description", cxxopts::value(treeDesc)->default_value(""), "DESC")
 		("cfd", "CFD Mode (lin, fit)", cxxopts::value< std::string >()->default_value("lin"), "MODE")
+		("trace", "Store traces", cxxopts::value(traceChannels), "CH")
 		("i,interactive", "Run interactively")
 		("h,help", "Help");
 
@@ -479,7 +481,7 @@ int main(int argc, char ** argv) {
 		std::cerr << "ERROR: Unknown CFD Mode: '" << args["cfd"].as<std::string>() << "'!" << std::endl;
 		return 2;
 	}
-		
+
 	/** ----------------------------------------------------
 	 *	Program start...
 	 *   ----------------------------------------------------
@@ -513,5 +515,6 @@ int main(int argc, char ** argv) {
 	            filename,
 	            treeDesc,
 					cfdMode,
-	            args["num"].as<int>());
+	            args["num"].as<int>(),
+					traceChannels);
 }
