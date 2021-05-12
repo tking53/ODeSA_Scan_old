@@ -59,6 +59,7 @@ enum class CfdMode {Lin, Fit};
 
 float CfdFit(TH1 *trace, int pposition);
 float CfdLin(const std::vector< float > & pulse, int pposition);
+float Rf(const std::vector< float > & pulse);
 
 int Scan (std::string prefix, std::string filename, std::string treeDesc="", CfdMode cfdMode=CfdMode::Lin, int num=0){
 	static std::array< Can, 13 > dets;
@@ -71,6 +72,8 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	uint32_t buffer32;
 	uint16_t buffer16;
 
+	Float_t rf;
+
   TSpectrum *s = new TSpectrum();
 
 
@@ -80,60 +83,60 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
    */
 
   std::array< float, 16 > cal =
-  {  0.0359,
-	  0.0327,
-	  0.0362,
-	  0.0269,
-	  0.0327,
-	  0.0345,
-	  0.0394,
-	  0.0376,
-	  0.031,
-	  0.0236,
-	  1.0,
-	  1.,
-	  1.,
-	  1.,
-	  1.,
-	  1.
+  {	0.0101,
+	0.0095,
+	0.0216,
+	0.0156,
+	0.0217,
+	0.0274,
+	0.0330,
+	0.1013,
+	1.,
+	1.,
+	0.0765,
+	0.1179,
+	0.0822,
+	1.,
+	1.,
+	1.
   }; // calibration (keVee / (bit * sample)) from manual check on calibration
 
   std::array< float, 16 > caloffset =
-  {  21.124,
-	  23.803,
-	  18.688,
-	  18.465,
-	  11.81,
-	  23.183,
-	  22.302,
-	  18.863,
-	  13.401,
-	  30.319,
-	  0,
-	  0,
-	  0,
-	  0,
-	  0,
-	  0
+  {	21.124,
+	23.803,
+	18.688,
+	18.465,
+	11.81,
+	23.183,
+	22.302,
+	18.863,
+	13.401,
+	30.319,
+	0,
+	0,
+	0,
+	0,
+	0,
+	0
   };
 
   std::array< float, 16 > threshold =
-  {  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700,
-	  15700
+  {	15940,
+	15900,
+	15840,
+	15930,
+	15920,
+	15970,
+	15930,
+	15970,
+	15950,
+	15850,
+	15750,
+	15850,
+	158250,
+	15700,
+	15700,
+	15700
   };
 
   /** ----------------------------------------------------
@@ -153,6 +156,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	  tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
   }
   //tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
+  tt->Branch("rf",&rf, "rf"); // RF timing signal
 
   TH1F *trace0 = new TH1F("trace0","Trace for channel 0",200,0,199);
   tt->Branch("trace0","TH1F", &trace0);
@@ -328,8 +332,13 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 					break;
 
 				case 13:
+					break;
+
 				case 14:
+					Rf(pulse);
+
 				case 15:
+					break;
 
 				default:
 					break;
@@ -351,6 +360,18 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 	cout << "\nFinished! " << TEvt << " events" << endl;
 
+	return 0;
+}
+
+float Rf(const std::vector<float> & pulse) {
+	for(size_t i=0; i<pulse.size(); i++){
+		if(pulse[i]-pulse[i-1] < 200) continue;
+		// ibt-1 to ibt+2 linear fit
+		double slope = (pulse[i+2] - pulse[i-1]) / ((i+2) - (i-1));
+		double intercept = pulse[i+2] - (slope * (i+2));
+		double Thresh = ((pulse[i+2]-pulse[i-1])/2) + pulse[i-1];
+		return (Thresh - intercept) / slope;
+	}
 	return 0;
 }
 
