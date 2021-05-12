@@ -59,7 +59,7 @@ enum class CfdMode {Lin, Fit};
 
 float CfdFit(TH1 *trace, int pposition);
 float CfdLin(const std::vector< float > & pulse, int pposition);
-double Rf(const std::vector< float > & pulse);
+double Rf_KS(const std::vector< float > & pulse, float thresh=-1);
 
 int Scan (std::string prefix, std::string filename, std::string treeDesc="", CfdMode cfdMode=CfdMode::Lin, int num=0){
 	const int numDets = 16;
@@ -336,7 +336,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 					break;
 
 				case 14:
-					rf = Rf(pulse);
+					rf = Rf_KS(pulse);
 					break;
 
 				default:
@@ -362,16 +362,57 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	return 0;
 }
 
-double Rf(const std::vector<float> & pulse) {
+double Rf_BT(const std::vector<float> & pulse) {
 	for(size_t i=0; i<pulse.size(); i++){
 		if(pulse[i]-pulse[i-1] < 200) continue;
 		// ibt-1 to ibt+2 linear fit
-		double slope = (pulse[i+2] - pulse[i-1]) / (float)((i+2) - (i-1));
+		double slope = (pulse[i+2] - pulse[i-1]) / 3.;
 		double intercept = pulse[i+2] - (slope * ((float)i+2));
-		double Thresh = ((pulse[i+2]-pulse[i-1])/2) + pulse[i-1];
-		return (Thresh - intercept) / slope;
+		double thresh = ((pulse[i+2]-pulse[i-1])/2.) + pulse[i-1];
+		printf("%f %f %f\n", slope, intercept, thresh);
+		return (thresh - intercept) / slope;
 	}
 	return 0;
+}
+
+/**Computes the x-position where an RF sine signal crosses a threshold.
+ * If not provided the threshold is computed as the midway point bewteen the
+ * max and min. The provided signal is scanned until the values are below the
+ * threshold and then the search for the crossing begins. This ensures that the
+ * crossing is on a rising value. The crossing point is then linearly
+ * interpolated between the two bracketing values.
+ *
+ * \param[in] pulse The signal to scan.
+ * \param[in] thresh An optional threshold to determine the crossing. If less
+ * 	than 0 the value is computed form the pulse.
+ * \return The x-position of the threshold crossing.
+ */
+double Rf_KS(const std::vector< float > & pulse, float thresh /* = -1 */) {
+	// Compute a threshold if not provided.
+	if (thresh < 0) {
+		float max = *std::max_element(pulse.begin(), pulse.end());
+		float min = *std::min_element(pulse.begin(), pulse.end());
+		thresh = (max - min) / 2. + min;
+	}
+
+	// Find a point below the threshold to start scan for a threshold crossing.
+	size_t start;
+	for (size_t i=0; i<pulse.size(); ++i) {
+		if (pulse[i] < thresh) {
+			start = i;
+			break;
+		}
+	}
+	// Find the threshold crossing
+	for (size_t i=start; i<pulse.size(); ++i) {
+		if (pulse[i] < thresh) continue;
+		double slope = (pulse[i] - pulse[i-1]) / 2.;
+		double intercept = pulse[i] - (slope * i);
+		return (thresh - intercept) / slope;
+	}
+
+	return -1;
+
 }
 
 float CfdFit(TH1 *trace, int pposition) {
