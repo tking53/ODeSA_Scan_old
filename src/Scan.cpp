@@ -59,20 +59,20 @@ enum class CfdMode {Lin, Fit};
 
 float CfdFit(TH1 *trace, int pposition);
 float CfdLin(const std::vector< float > & pulse, int pposition);
-float Rf(const std::vector< float > & pulse);
+double Rf(const std::vector< float > & pulse);
 
 int Scan (std::string prefix, std::string filename, std::string treeDesc="", CfdMode cfdMode=CfdMode::Lin, int num=0){
-	static std::array< Can, 13 > dets;
+	const int numDets = 16;
+	static std::array< Can, numDets > dets;
 
-	const int numFiles = 13;
-	std::array< ifstream, numFiles > fps;
+	std::array< ifstream, numDets > fps;
 
 	long TEvt = 0;
 
 	uint32_t buffer32;
 	uint16_t buffer16;
 
-	Float_t rf;
+	Double_t rf = -1;
 
   TSpectrum *s = new TSpectrum();
 
@@ -82,7 +82,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
    *   ----------------------------------------------------
    */
 
-  std::array< float, 16 > cal =
+  std::array< float, numDets > cal =
   {	0.0101,
 	0.0095,
 	0.0216,
@@ -101,7 +101,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	1.
   }; // calibration (keVee / (bit * sample)) from manual check on calibration
 
-  std::array< float, 16 > caloffset =
+  std::array< float, numDets > caloffset =
   {	21.124,
 	23.803,
 	18.688,
@@ -120,7 +120,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	0
   };
 
-  std::array< float, 16 > threshold =
+  std::array< float, numDets > threshold =
   {	15940,
 	15900,
 	15840,
@@ -156,7 +156,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	  tt->Branch(("d" + std::to_string(i)).c_str(), &dets.at(i),"l:s:amp:cfd:psd:trg");
   }
   //tt->Branch("runtime",&runtime,"Runtime (ms)");     // Runtime in ms
-  tt->Branch("rf",&rf, "rf"); // RF timing signal
+  tt->Branch("rf",&rf, "rf/D"); // RF timing signal
 
   TH1F *trace0 = new TH1F("trace0","Trace for channel 0",200,0,199);
   tt->Branch("trace0","TH1F", &trace0);
@@ -175,7 +175,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 	// Open files
 	bool valid = false;
-	for (int i = 0; i < numFiles; i++) {
+	for (int i = 0; i < numDets; i++) {
 		std::string openfile = prefix + "_wave" + to_string(i) + ".dat";
 		cout << " Opening file: " << openfile;
 		fps[i].open(openfile, std::ifstream::in | std::ifstream::binary);
@@ -205,7 +205,11 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	while (data_valid) {
 		// Stop after nth events...
 		if (num && TEvt > num) {break;}
-		for (int detNum=0; detNum < numFiles; detNum++) {
+
+		rf = -1;
+
+		// Loop over each channel
+		for (int detNum=0; detNum < numDets; detNum++) {
 
 		  // Binary parsing
 			auto & fp = fps[detNum];
@@ -331,13 +335,8 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 					}
 					break;
 
-				case 13:
-					break;
-
 				case 14:
-					Rf(pulse);
-
-				case 15:
+					rf = Rf(pulse);
 					break;
 
 				default:
@@ -363,12 +362,12 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 	return 0;
 }
 
-float Rf(const std::vector<float> & pulse) {
+double Rf(const std::vector<float> & pulse) {
 	for(size_t i=0; i<pulse.size(); i++){
 		if(pulse[i]-pulse[i-1] < 200) continue;
 		// ibt-1 to ibt+2 linear fit
-		double slope = (pulse[i+2] - pulse[i-1]) / ((i+2) - (i-1));
-		double intercept = pulse[i+2] - (slope * (i+2));
+		double slope = (pulse[i+2] - pulse[i-1]) / (float)((i+2) - (i-1));
+		double intercept = pulse[i+2] - (slope * ((float)i+2));
 		double Thresh = ((pulse[i+2]-pulse[i-1])/2) + pulse[i-1];
 		return (Thresh - intercept) / slope;
 	}
