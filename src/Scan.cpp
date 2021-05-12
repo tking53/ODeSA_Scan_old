@@ -7,19 +7,10 @@
  *	Author(s):
  *     Michael T. Febbraro
  *     David Walter
+ *     Karl Smith
  *
  *  Creation Date: 9/25/2016
  *  Last modified: 8/24/2018
- *
- *  To compile: g++ -O3 -pedantic -o Scan.exe `root-config --cflags --libs` -lSpectrum NewScan.cpp
- *      - if errors copiling in Mac OSX
- *        - remove -03 option
- *        - clang++ instead of g++
- *        - $(root-config --cflags --libs) instead of 'root-config --cflags --libs'
- *
- *
- *  If "error while loading shared libraries: libcore.so: ..." occurs, type
- *  "source `root-config --prefix`/bin/thisroot.sh"
  *
  * -----------------------------------------------------
  * 	Nuclear Astrophysics, Physics Division
