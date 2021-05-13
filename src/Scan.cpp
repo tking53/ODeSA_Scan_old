@@ -10,7 +10,7 @@
  *     Karl Smith
  *
  *  Creation Date: 9/25/2016
- *  Last modified: 8/24/2018
+ *  Last modified: 5/11/2021
  *
  * -----------------------------------------------------
  * 	Nuclear Astrophysics, Physics Division
@@ -77,22 +77,18 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
    */
 
   std::array< float, numDets > cal =
-  {	0.0101,
-	0.0095,
-	0.0216,
-	0.0156,
-	0.0217,
-	0.0274,
-	0.0330,
-	0.1013,
-	1.,
-	1.,
-	0.0765,
-	0.1179,
-	0.0822,
-	1.,
-	1.,
-	1.
+  {   0.0359,
+      0.0327,
+      0.0362,
+      0.0269,
+      0.0327,
+      0.0345,
+      0.0394,
+      0.0376,
+      0.031,
+      0.0236,
+      1.0, 1., 1., 1., 1., 1.
+
   }; // calibration (keVee / (bit * sample)) from manual check on calibration
 
   std::array< float, numDets > caloffset =
@@ -169,7 +165,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 	// Open files
 	bool valid = false;
-	int file_length = 0;
+	size_t file_length = 0;
 	for (int i = 0; i < numDets; i++) {
 		std::string openfile = prefix + "_wave" + to_string(i) + ".dat";
 		cout << " Opening file: " << openfile;
@@ -309,7 +305,7 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 
 			auto & det = dets.at(detNum);
 			det.amp = amplitude;
-			det.l = paraL;
+			det.l = paraL * cal[detNum];
 			det.s = paraS;
 			det.cfd = CFD;
 			det.trg = trg;
@@ -348,7 +344,8 @@ int Scan (std::string prefix, std::string filename, std::string treeDesc="", Cfd
 		tt->Fill();
       TEvt++;
       if (TEvt % 1000 == 0) {
-			int percentComplete = fps[0].tellg() / (float) file_length * 100;
+			int percentComplete = fps[1].tellg() / (float) file_length * 100;
+            // To fix - line 181 make file_length size of biggest file not last file
 			cout << "\rEvent: " << TEvt << " " << percentComplete << "%" << flush;
 		}
 
@@ -509,7 +506,7 @@ int main(int argc, char ** argv) {
 	cout << " | Scan.cpp - binary version                     |" << endl;
 	cout << " |   Experiment: 20Ne(d,n)                       |" << endl;
 	cout << " |   Date: May 2021                              |" << endl;
-	cout << " |   Calibration used: None                      |" << endl;
+	cout << " |   Calibration used: Becca 137Cs Pre BeamTime  |" << endl;
 	cout << " |   ORNL Nuclear Astrophysics                   |" << endl;
 	cout << " ------------------------------------------------ " << endl;
 
